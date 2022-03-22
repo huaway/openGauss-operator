@@ -68,14 +68,24 @@ func NewPersistentVolumeClaim(og *v1.OpenGauss) *corev1.PersistentVolumeClaim {
 // NewMasterStatefulsets returns master statefulset object
 func NewMasterStatefulsets(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
 	sts = NewStatefulsets(Master, og)
-	klog.V(4).Info(og.Spec.Resources.Limits)
-	if og.Spec.Resources != nil && og.Spec.Resources.Limits != nil {
-		res := og.Spec.Resources
-		if res.Limits.Cpu() != nil {
-			sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = *res.Limits.Cpu()
+	klog.V(4).Info(og.Spec.OpenGauss.Master.Resources)
+	if og.Spec.OpenGauss.Master.Resources != nil {
+		res := og.Spec.OpenGauss.Master.Resources
+		if res.Requests != nil {
+			if res.Requests.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU] = *res.Requests.Cpu()
+			}
+			if res.Requests.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory] = *res.Requests.Memory()
+			}
 		}
-		if res.Limits.Memory() != nil {
-			sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] = *res.Limits.Memory()
+		if res.Limits != nil {
+			if res.Limits.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = *res.Limits.Cpu()
+			}
+			if res.Limits.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] = *res.Limits.Memory()
+			}				
 		}
 	}
 	return
@@ -84,14 +94,24 @@ func NewMasterStatefulsets(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
 // NewReplicaStatefulsets returns replica statefulset object
 func NewReplicaStatefulsets(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
 	sts = NewStatefulsets(Replicas, og)
-	klog.V(4).Info(og.Spec.Resources)
-	if og.Spec.Resources != nil && og.Spec.Resources.Limits != nil {
-		res := og.Spec.Resources
-		if res.Limits.Cpu() != nil {
-			sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = *res.Limits.Cpu()
+	klog.V(4).Info(og.Spec.OpenGauss.Worker.Resources)
+	if og.Spec.OpenGauss.Worker.Resources != nil {
+		res := og.Spec.OpenGauss.Worker.Resources
+		if res.Requests != nil {
+			if res.Requests.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU] = *res.Requests.Cpu()
+			}
+			if res.Requests.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory] = *res.Requests.Memory()
+			}
 		}
-		if res.Limits.Memory() != nil {
-			sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] = *res.Limits.Memory()
+		if res.Limits != nil {
+			if res.Limits.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = *res.Limits.Cpu()
+			}
+			if res.Limits.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] = *res.Limits.Memory()
+			}				
 		}
 	}
 	if strings.Contains(og.Spec.Image, "base") {
@@ -130,6 +150,7 @@ func NewStatefulsets(id Identity, og *v1.OpenGauss) (res *appsv1.StatefulSet) {
 	res.Spec.Template.Spec.Volumes[1].ConfigMap.Name = formatter.ConfigMapName()
 	pvcFormatter := util.OpenGaussClusterFormatter(og)
 	res.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName = pvcFormatter.PersistentVolumeCLaimName()
+	res.Spec.Template.Spec.NodeSelector = formatter.NodeSelector()
 	if og.Spec.OpenGauss.Origin != nil {
 		res.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName = og.Spec.OpenGauss.Origin.PVC
 	}
@@ -161,132 +182,6 @@ func NewOpengaussService(og *v1.OpenGauss, id Identity) (res *corev1.Service) {
 	res.Name = formatter.ServiceName()
 	res.Labels["app"] = formatter.StatefulSetName()
 	res.Spec.Selector["app"] = formatter.StatefulSetName()
-	return
-}
-
-// NewMycatService return mycat service
-func NewMycatService(og *v1.OpenGauss) (res *corev1.Service) {
-	res = serviceTemplate()
-	formatter := util.OpenGaussClusterFormatter(og)
-	res.Name = formatter.MycatServiceName()
-	res.Labels = map[string]string{
-		"app": formatter.MycatStatefulsetName(),
-	}
-	res.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-		*metav1.NewControllerRef(og, v1.SchemeGroupVersion.WithKind("OpenGauss")),
-	}
-	res.Spec.Ports = []corev1.ServicePort{
-		{
-			Name:     "mycat-port1",
-			Port:     9066,
-			Protocol: corev1.ProtocolTCP,
-			TargetPort: intstr.IntOrString{
-				IntVal: 9066,
-			},
-		},
-		{
-			Name:     "mycat-port2",
-			Port:     8066,
-			Protocol: corev1.ProtocolTCP,
-			TargetPort: intstr.IntOrString{
-				IntVal: 8066,
-			},
-		},
-	}
-	res.Spec.Selector = map[string]string{
-		"app": formatter.MycatStatefulsetName(),
-	}
-
-	return
-}
-
-// NewMycatStatefulset return mycat statefulset
-func NewMycatStatefulset(og *v1.OpenGauss) (res *appsv1.StatefulSet) {
-	res = statefulsetTemplate()
-	formatter := util.OpenGaussClusterFormatter(og)
-	labels := map[string]string{
-		"app": formatter.MycatStatefulsetName(),
-	}
-
-	res.Name = formatter.MycatStatefulsetName()
-	if og.Spec.OpenGauss.Origin != nil {
-		res.Name = og.Spec.OpenGauss.Origin.MycatClusterName
-	}
-	res.Namespace = og.Namespace
-	res.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
-		*metav1.NewControllerRef(og, v1.SchemeGroupVersion.WithKind("OpenGauss")),
-	}
-	*res.Spec.Replicas = *og.Spec.OpenGauss.Mycat.Replicas
-	res.Spec.Selector = &metav1.LabelSelector{
-		MatchLabels: labels,
-	}
-	res.Spec.ServiceName = formatter.MycatServiceName()
-	res.Spec.Template.ObjectMeta.Labels = labels
-	res.Spec.Template.Spec.Containers = []corev1.Container{
-		{
-			Name:  "opengauss-mycat",
-			Image: "yanglibao/mycat:v2.3",
-			Args: []string{
-				"init",
-			},
-			SecurityContext: &corev1.SecurityContext{
-				Privileged: util.BoolPtr(true),
-			},
-			Ports: []corev1.ContainerPort{
-				{
-					Name:          "opengauss1",
-					Protocol:      corev1.ProtocolTCP,
-					ContainerPort: 8066,
-				},
-				{
-					Name:          "opengauss2",
-					Protocol:      corev1.ProtocolTCP,
-					ContainerPort: 9066,
-				},
-			},
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("2000m"),
-					corev1.ResourceMemory: resource.MustParse("4Gi"),
-				},
-				// Limits: corev1.ResourceList{
-				// 	corev1.ResourceCPU:    resource.MustParse("2000m"),
-				// 	corev1.ResourceMemory: resource.MustParse("4Gi"),
-				// },
-			},
-			ImagePullPolicy: corev1.PullIfNotPresent,
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					MountPath: "/root/volume",
-					Name:      "config",
-				},
-			},
-		},
-	}
-	res.Spec.Template.Spec.InitContainers = []corev1.Container{}
-	res.Spec.Template.Spec.Volumes = []corev1.Volume{
-		{
-			Name: "config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: formatter.MycatConfigMapName(),
-					},
-				},
-			},
-		},
-	}
-	if og.Spec.OpenGauss.Mycat.Image != "" {
-		res.Spec.Template.Spec.Containers[0].Image = og.Spec.OpenGauss.Mycat.Image
-	}
-
-	return
-}
-
-// NewDeployment return mycat deployment object
-func NewMycatDeployment(og *v1.OpenGauss) (res *appsv1.Deployment) {
-	res = DeploymentTemplate(og)
-
 	return
 }
 
@@ -340,28 +235,135 @@ func NewConfigMap(id Identity, og *v1.OpenGauss) (*unstructured.Unstructured, sc
 	return configMap, configMapRes
 }
 
-func NewMyCatConfigMap(og *v1.OpenGauss) (cm *corev1.ConfigMap) {
+func CleanMyCatConfig(og *v1.OpenGauss, cm *corev1.ConfigMap) {
+	cm.Data[og.Name+".host"] = ""
+	cm.Data[og.Name+".table"] = ""
+}
+
+func NewShardingSphereConfigMap(og *v1.OpenGauss) (cm *corev1.ConfigMap) {
+	// Only create server.yaml for initial boot of shardingsphere.
+	// readwrite rule will be added when update opengauss status.
 	cm = configMapTemplate()
 	cm.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
 		*metav1.NewControllerRef(og, v1.SchemeGroupVersion.WithKind("OpenGauss")),
 	}
 	formatter := util.OpenGaussClusterFormatter(og)
-	cm.ObjectMeta.Name = formatter.MycatConfigMapName()
-	cm.Data[og.Name+".host"] = formatter.MycatHostConfig()
-	cm.Data[og.Name+".table"] = formatter.MycatTableConfig()
+	cm.ObjectMeta.Name = formatter.ShardingsphereConfigMapName()
+	cm.Data["server.yaml"] = formatter.ShardingSphereServerConfig()
+	cm.Data["config-readwrite-splitting.yaml"] = formatter.ShardingsphereReadwriteConfig()
 	return cm
 }
 
-func AppendMyCatConfig(og *v1.OpenGauss, cm *corev1.ConfigMap) {
+func NewShardingSphereStatefulset(og *v1.OpenGauss) (res *appsv1.StatefulSet) {
 	formatter := util.OpenGaussClusterFormatter(og)
-	cm.Data[og.Name+".host"] = formatter.MycatHostConfig()
-	cm.Data[og.Name+".table"] = formatter.MycatTableConfig()
+	res = &appsv1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "StatefulSet",
+			APIVersion: "apps/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: formatter.ShardingsphereStatefulsetName(),
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(og, v1.SchemeGroupVersion.WithKind("OpenGauss")),
+			},
+		},
+		Spec: appsv1.StatefulSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": formatter.ShardingsphereStatefulsetName(),
+				},
+			},
+			ServiceName: formatter.ShardingsphereServiceName(),
+			Replicas: og.Spec.OpenGauss.Shardingsphere.Replicas,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": formatter.ShardingsphereStatefulsetName(),
+					},
+				},
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: util.Int64Ptr(10),
+					Containers: []corev1.Container{
+						{
+							Name: "shardingsphere",
+							Image: og.Spec.OpenGauss.Shardingsphere.Image,
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Ports: []corev1.ContainerPort{
+								{
+									Name: "server",
+									Protocol: corev1.ProtocolTCP,
+									ContainerPort: 3307,
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									MountPath: "/opt/shardingsphere-proxy/conf",
+									Name: "config",
+								},
+							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU: *og.Spec.OpenGauss.Shardingsphere.Resources.Requests.Cpu(),
+									corev1.ResourceMemory: *og.Spec.OpenGauss.Shardingsphere.Resources.Requests.Memory(),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    *og.Spec.OpenGauss.Shardingsphere.Resources.Limits.Cpu(),
+									corev1.ResourceMemory: *og.Spec.OpenGauss.Shardingsphere.Resources.Limits.Memory(),
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: formatter.ShardingsphereConfigMapName(),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return
 }
 
-func CleanMyCatConfig(og *v1.OpenGauss, cm *corev1.ConfigMap) {
-	cm.Data[og.Name+".host"] = ""
-	cm.Data[og.Name+".table"] = ""
+func NewShardingsphereService(og *v1.OpenGauss) (res *corev1.Service) {
+	res = serviceTemplate()
+	formatter := util.OpenGaussClusterFormatter(og)
+	res.Name = formatter.ShardingsphereServiceName()
+	res.Labels = map[string]string{
+		"app": formatter.ShardingsphereStatefulsetName(),
+	}
+	res.ObjectMeta.OwnerReferences = []metav1.OwnerReference{
+		*metav1.NewControllerRef(og, v1.SchemeGroupVersion.WithKind("OpenGauss")),
+	}
+	res.Spec.Ports = []corev1.ServicePort{
+		{
+			Name:     "database",
+			Port:     5432,
+			Protocol: corev1.ProtocolTCP,
+			TargetPort: intstr.IntOrString{
+				IntVal: 3307,
+			},
+		},
+	}
+	res.Spec.Selector = map[string]string{
+		"app": formatter.ShardingsphereStatefulsetName(),
+	}
+	return
 }
+
+func AppendShardingsphereConfig(og *v1.OpenGauss, cm *corev1.ConfigMap) {
+	formatter := util.OpenGaussClusterFormatter(og)
+	cm.Data["server.yaml"] = formatter.ShardingSphereServerConfig()
+	cm.Data["config-readwrite-splitting.yaml"] = formatter.ShardingsphereReadwriteConfig()
+}
+
 
 // configeMapTemplate returns a configmap template of type corev1.Configmap
 func configMapTemplate() *corev1.ConfigMap {
@@ -371,9 +373,9 @@ func configMapTemplate() *corev1.ConfigMap {
 			APIVersion: "v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "mycat-configmap",
+			Name: "shardingSphere-configmap",
 			Labels: map[string]string{
-				"app": "mycat",
+				"app": "shardingSphere-sphere",
 			},
 		},
 		Data: map[string]string{},
@@ -473,8 +475,12 @@ func statefulsetTemplate() *appsv1.StatefulSet {
 								},
 							},
 							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("1000m"),
+									corev1.ResourceMemory: resource.MustParse("2Gi"),
+								},
 								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("1500m"),
+									corev1.ResourceCPU:    resource.MustParse("1000m"),
 									corev1.ResourceMemory: resource.MustParse("2Gi"),
 								},
 							},
@@ -632,7 +638,7 @@ func DeploymentTemplate(og *v1.OpenGauss) *appsv1.Deployment {
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: og.Spec.OpenGauss.Mycat.Replicas,
+			Replicas: og.Spec.OpenGauss.Shardingsphere.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},

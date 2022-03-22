@@ -1,0 +1,29 @@
+schemaName: postgres
+
+dataSources:
+  primary_ds:
+    url: jdbc:postgresql://[master-ip]:5432/postgres
+    username: gaussdb
+    password: Enmo@123
+    connectionTimeoutMilliseconds: 60000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 50
+    minPoolSize: 1
+  replica_ds_0:
+    url: jdbc:postgresql://[replica-ip]:5432/postgres
+    username: gaussdb
+    password: Enmo@123
+    connectionTimeoutMilliseconds: 60000
+    idleTimeoutMilliseconds: 60000
+    maxLifetimeMilliseconds: 1800000
+    maxPoolSize: 50
+    minPoolSize: 1
+rules:
+- !READWRITE_SPLITTING
+  dataSources:
+    readwrite_ds:
+      type: Static
+      props:
+        write-data-source-name: primary_ds
+        read-data-source-names: replica_ds_0

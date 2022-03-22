@@ -21,9 +21,9 @@ import (
 
 var (
 	serverAddr     = flag.String("server_addr", "localhost:17173", "The server address in the format of host:port")
-	address        = "http://10.77.50.201:31111"
-	runtime        = time.Minute * 360 // 测试时间
-	scaleInterval  = time.Second * 300 // 弹性伸缩间隔
+	address        = "http://10.77.50.203:31111"
+	runtime        = time.Minute * 300 // 测试时间
+	scaleInterval  = time.Second * 150 // 弹性伸缩间隔
 	adjustInterval = time.Second * 5   // 获取CPU利用率间隔
 	isScale        = true              // 是否开启弹性伸缩
 )
@@ -47,11 +47,11 @@ func main() {
 	client := pb.NewOpenGaussControllerClient(conn)
 	// 获取集群的初始信息
 	request := &pb.GetRequest{
-		OpenGaussObjectKey: "test/a",
+		OpenGaussObjectKey: "test/d",
 	}
 	response, _ := client.Get(context.TODO(), request)
 	scaleRequest := &pb.ScaleRequest{
-		OpenGaussObjectKey: "test/a",
+		OpenGaussObjectKey: "test/d",
 		MasterReplication:  response.MasterReplication,
 		WorkerReplication:  response.WorkerReplication,
 	}
@@ -75,7 +75,7 @@ func run(ctx context.Context, scaleRequest *pb.ScaleRequest, client pb.OpenGauss
 	file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	defer file.Close()
 	write := bufio.NewWriter(file)
-	lastScaleTime := time.Now()
+	lastScaleTime := time.Time{}
 	if err != nil {
 		log.Fatalf("Cannot connect to prometheus: %s, %s", address, err.Error())
 	}
@@ -86,7 +86,8 @@ func run(ctx context.Context, scaleRequest *pb.ScaleRequest, client pb.OpenGauss
 			return
 		default:
 			// 获得第一个集群的平均CPU利用率，以判断是否伸缩备机
-			result, err := prometheusUtil.QueryClusterCpuUsagePercentage("a", queryClient)
+			// result, err := prometheusUtil.QueryClusterCpuUsagePercentage("d", queryClient)
+			result, err := prometheusUtil.QueryWorkerCpuUsagePercentage("d", queryClient)
 			if err != nil {
 				log.Fatalf("Cannot query prometheus: %s, %s", address, err.Error())
 			}
@@ -94,14 +95,14 @@ func run(ctx context.Context, scaleRequest *pb.ScaleRequest, client pb.OpenGauss
 			m := extractResult(&result)
 			for _, v := range m {
 				percentage, _ := strconv.ParseFloat(v, 64)
-				fmt.Println("Cluster Cpu Usage", percentage)
+				fmt.Println("Worker Cpu Usage", percentage)
 				// ----------start-----------
 				// 弹性伸缩相关代码：
 				// 发起rpc调用
 				if isScale {
 					fmt.Println("last scaletime ", lastScaleTime)
 					if percentage > 80 {
-						if scaleRequest.WorkerReplication >= 4 {
+						if scaleRequest.WorkerReplication >= 2 {
 							continue
 						}
 						if time.Since(lastScaleTime) < scaleInterval {
@@ -116,7 +117,7 @@ func run(ctx context.Context, scaleRequest *pb.ScaleRequest, client pb.OpenGauss
 						log.Print(response)
 					}
 					if percentage < 50 {
-						if scaleRequest.WorkerReplication <= 0 {
+						if scaleRequest.WorkerReplication <= 1 {
 							continue
 						}
 						if time.Since(lastScaleTime) < scaleInterval {

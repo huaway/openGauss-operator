@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"database/sql"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -15,7 +16,8 @@ import (
 	ogscheme "github.com/waterme7on/openGauss-operator/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/waterme7on/openGauss-operator/pkg/generated/informers/externalversions/opengausscontroller/v1"
 	listers "github.com/waterme7on/openGauss-operator/pkg/generated/listers/opengausscontroller/v1"
-	"github.com/waterme7on/openGauss-operator/util"
+	_ "github.com/lib/pq"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -275,6 +277,53 @@ func (c *Controller) processNextWorkItem() bool {
 	return true
 }
 
+func (c *Controller) UpdateStatusIPs(og *opengaussv1.OpenGauss, masterSts *appsv1.StatefulSet, replicaSts *appsv1.StatefulSet) error {
+	if og.Status == nil {
+		og.Status = &opengaussv1.OpenGaussStatus{}
+	}
+
+	og.Status.MasterIPs = []string{}
+	klog.Info("Update opengauss IPs")
+	for i := 0; i < int(*og.Spec.OpenGauss.Master.Replicas); i++ {
+		masterName := fmt.Sprintf("%v-%d", masterSts.Name, i)
+		for {
+			master, err := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), masterName, v1.GetOptions{})
+			if err != nil {
+				klog.Error("Error when update Opengauss Master IPs")
+			}
+			if master != nil && master.Status.ContainerStatuses != nil {
+				if len(master.Status.PodIP) == 0 {
+					time.Sleep(time.Millisecond * 500)
+					continue
+				}
+				klog.Info("master ip: " + master.Status.PodIP)
+				og.Status.MasterIPs = append(og.Status.MasterIPs, master.Status.PodIP)
+				break
+			}
+		}
+	}	
+	og.Status.ReplicasIPs = []string{}
+	for i := 0; i < int(*og.Spec.OpenGauss.Worker.Replicas); i++ {
+		replicasName := fmt.Sprintf("%v-%d", replicaSts.Name, i)
+		for {
+			replicas, err := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), replicasName, v1.GetOptions{})
+			if err != nil {
+				klog.Error("Error when update Opengauss Replica IPs")
+			}
+			if replicas != nil && replicas.Status.ContainerStatuses != nil {
+				if len(replicas.Status.PodIP) == 0 {
+					time.Sleep(time.Millisecond * 500)
+					continue
+				}
+				klog.Info("replica ip: " + replicas.Status.PodIP)
+				og.Status.ReplicasIPs = append(og.Status.ReplicasIPs, replicas.Status.PodIP)
+				break
+			}
+		}
+	}
+	return nil
+}
+
 // syncHandler compares the actual state with the desired and attempt to coverge the two.
 // It then updates the status of OpenGauss
 func (c *Controller) syncHandler(key string) error {
@@ -367,57 +416,39 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	//
-	klog.Infof("Create or get configmap for og: %v", og.Name)
-	// create mycat configmap
-	mycatConfigMap := NewMyCatConfigMap(og)
-	if og.Spec.OpenGauss.Origin == nil {
-		// for origin master, update configmap
-		mycatConfigMap, err = c.createOrGetConfigMap(og.Namespace, mycatConfigMap)
-		if err != nil {
-			return err
-		}
-	} else {
-		// for new master, append configs to configmap
-		mycatConfigMap.Name = og.Spec.OpenGauss.Origin.Master + "-mycat-cm"
-		mycatConfigMap, err = c.createOrGetConfigMap(og.Namespace, mycatConfigMap)
-		if err != nil {
-			return err
-		}
-		// AppendMyCatConfig(og, cm)
-		// err = c.createOrUpdateConfigMap(og.Namespace, cm)
-		// if err != nil {
-		// 	return err
-		// }
-	}
-
-	// create or get mycat statefulset
-	var mycatStsConfig *appsv1.StatefulSet = nil
-	var mycatStatefulSet *appsv1.StatefulSet = nil
-	mycatStsConfig = NewMycatStatefulset(og)
-	mycatStatefulSet, err = c.createOrGetStatefulset(og.Namespace, mycatStsConfig)
+	shardingsphereSvcConfig := NewShardingsphereService(og)
+	shardingsphereSvc, err  := c.createOrGetService(og.Namespace, shardingsphereSvcConfig)
 	if err != nil {
 		return err
 	}
 
-	// create or get mycat service if this is origin master
-	if og.Spec.OpenGauss.Origin == nil {
-		mycatSvcconfig := NewMycatService(og)
-		mycatSvc, err := c.createOrGetService(og.Namespace, mycatSvcconfig)
+	// create sharding-sphere configmap at the time cluster is established
+	klog.Infof("Update shardingsphere config")
+	if og.Status == nil {
+		_, err := c.createShardingsphereConfigmap(og, masterStatefulset, replicasStatefulset)
 		if err != nil {
 			return err
 		}
-		if !v1.IsControlledBy(mycatSvc, og) {
-			msg := fmt.Sprintf(MessageResourceExists, mycatSvc.Name)
-			c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
-			return fmt.Errorf(msg)
+	} else {
+		err = c.UpdateShardingsphereReadwriteConfig(og, masterStatefulset, replicasStatefulset, shardingsphereSvc)
+		if err != nil {
+			klog.Error("Create or update shardingsphere read-write config: error: ", err)
+			return err
 		}
-		if !v1.IsControlledBy(mycatStatefulSet, og) {
-			msg := fmt.Sprintf(MessageResourceExists, mycatStatefulSet.Name)
-			c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
-			return fmt.Errorf(msg)
-		}
+	
 	}
+	
+	// create or get shardingsphere statefulset
+	var shardingsphereStsConfig *appsv1.StatefulSet = nil
+	var shardingsphereStatefulset *appsv1.StatefulSet = nil
+	shardingsphereStsConfig = NewShardingSphereStatefulset(og)
+	shardingsphereStatefulset, err = c.createOrGetStatefulset(og.Namespace, shardingsphereStsConfig)
+	if err != nil {
+		return err
+	}
+
+	// create or get shardingsphere servie
+
 
 	// 2. check if all components are controlled by opengauss
 	// checked if statefulsets are controlled by this og resource
@@ -428,6 +459,16 @@ func (c *Controller) syncHandler(key string) error {
 	}
 	if !v1.IsControlledBy(replicasStatefulset, og) {
 		msg := fmt.Sprintf(MessageResourceExists, replicasStatefulset.Name)
+		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
+		return fmt.Errorf(msg)
+	}
+	if !v1.IsControlledBy(shardingsphereSvc, og) {
+		msg := fmt.Sprintf(MessageResourceExists, shardingsphereSvc.Name)
+		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
+		return fmt.Errorf(msg)
+	}
+	if !v1.IsControlledBy(shardingsphereStatefulset, og) {
+		msg := fmt.Sprintf(MessageResourceExists, shardingsphereStatefulset.Name)
 		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
 		return fmt.Errorf(msg)
 	}
@@ -460,39 +501,39 @@ func (c *Controller) syncHandler(key string) error {
 		}
 	}
 
-	// update mycat Image if needed
-	if og.Spec.OpenGauss.Origin == nil && mycatStatefulSet != nil && og.Spec.OpenGauss.Mycat.Image != mycatStatefulSet.Spec.Template.Spec.Containers[0].Image {
+	// update shardingsphere Image if needed
+	if og.Spec.OpenGauss.Origin == nil && shardingsphereStatefulset != nil && og.Spec.OpenGauss.Shardingsphere.Image != shardingsphereStatefulset.Spec.Template.Spec.Containers[0].Image {
 		newTs := int(time.Now().Unix())
-		oldTs, err := strconv.Atoi(mycatStatefulSet.Spec.Template.Annotations["version/config"])
+		oldTs, err := strconv.Atoi(shardingsphereStatefulset.Spec.Template.Annotations["version/config"])
 		if err != nil || newTs-oldTs >= 60 {
-			mycatStsConfig.Spec.Template.Annotations = map[string]string{
+			shardingsphereStsConfig.Spec.Template.Annotations = map[string]string{
 				"version/config": strconv.Itoa(int(time.Now().Unix())),
 			}
-			mycatStatefulSet, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), mycatStsConfig, v1.UpdateOptions{})
+			shardingsphereStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), shardingsphereStsConfig, v1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
 		}
 	}
 	// checked if persistent volume claims are correct
-	if og.Spec.OpenGauss.Origin == nil && pvc != nil && *og.Spec.Resources.Requests.Storage() != *pvc.Spec.Resources.Requests.Storage() {
+	if og.Spec.OpenGauss.Origin == nil && pvc != nil && (*og.Spec.Resources.Requests.Storage() != *pvc.Spec.Resources.Requests.Storage() || og.Spec.StorageClassName != *pvc.Spec.StorageClassName) {
 		klog.V(4).Infof("Update OpenGauss pvc storage")
 		pvc, err = c.kubeClientset.CoreV1().PersistentVolumeClaims(og.Namespace).Update(context.TODO(), NewPersistentVolumeClaim(og), v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 	}
-	// check if mycat statefulset is correct
-	if og.Spec.OpenGauss.Origin == nil && mycatStatefulSet != nil && *og.Spec.OpenGauss.Mycat.Replicas != *mycatStatefulSet.Spec.Replicas {
-		klog.V(4).Infof("Openguass %s mycat deployments, expected replicas: %d, actual replicas: %d", og.Name, *og.Spec.OpenGauss.Mycat.Replicas, *mycatStatefulSet.Spec.Replicas)
-		mycatStatefulSet, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), NewMycatStatefulset(og), v1.UpdateOptions{})
+	// check if shardingsphere statefulset is correct
+	if og.Spec.OpenGauss.Origin == nil && shardingsphereStatefulset != nil && *og.Spec.OpenGauss.Shardingsphere.Replicas != *shardingsphereStatefulset.Spec.Replicas {
+		klog.V(4).Infof("Openguass %s shardingsphere deployments, expected replicas: %d, actual replicas: %d", og.Name, *og.Spec.OpenGauss.Shardingsphere.Replicas, *shardingsphereStatefulset.Spec.Replicas)
+		shardingsphereStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), NewShardingSphereStatefulset(og), v1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 	}
 
 	// finally update opengauss resource status
-	err = c.updateOpenGaussStatus(og, masterStatefulset, replicasStatefulset, mycatStatefulSet, mycatConfigMap, pvc)
+	err = c.updateOpenGaussStatus(og, masterStatefulset, replicasStatefulset, shardingsphereStatefulset, shardingsphereSvc, pvc)
 	if err != nil {
 		return err
 	}
@@ -508,10 +549,10 @@ func (c *Controller) syncHandler(key string) error {
 // update opengauss status
 func (c *Controller) updateOpenGaussStatus(
 	og *opengaussv1.OpenGauss,
-	masterStatefulset *appsv1.StatefulSet,
-	replicasStatefulset *appsv1.StatefulSet,
-	mycatStatefulSet *appsv1.StatefulSet,
-	mycatConfigMap *corev1.ConfigMap,
+	masterStatefulset  		  *appsv1.StatefulSet,
+	replicasStatefulset       *appsv1.StatefulSet,
+	shardingsphereStatefulSet *appsv1.StatefulSet,
+	shardingsphereSvc 		  *corev1.Service,
 	pvc *corev1.PersistentVolumeClaim) error {
 	var err error
 	ogCopy := og.DeepCopy()
@@ -523,53 +564,173 @@ func (c *Controller) updateOpenGaussStatus(
 	ogCopy.Status.ReadyMaster = (strconv.Itoa(int(masterStatefulset.Status.ReadyReplicas)))
 	ogCopy.Status.ReadyReplicas = (strconv.Itoa(int(replicasStatefulset.Status.ReadyReplicas)))
 
-	if mycatStatefulSet != nil {
-		ogCopy.Status.ReadyMycat = (strconv.Itoa(int(mycatStatefulSet.Status.ReadyReplicas)))
+	if shardingsphereStatefulSet != nil {
+		ogCopy.Status.ReadyShardingsphere = (strconv.Itoa(int(shardingsphereStatefulSet.Status.ReadyReplicas)))
 	}
 	ogCopy.Status.PersistentVolumeClaimName = pvc.Name
 	if (masterStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.Master.Replicas &&
 		(replicasStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.Worker.Replicas {
 		ogCopy.Status.OpenGaussStatus = "READY"
 	}
-	ogCopy.Status.MasterIPs = []string{}
-	for i := 0; i < int(*ogCopy.Spec.OpenGauss.Master.Replicas); i++ {
-		m_replicas_name := fmt.Sprintf("%v-%d", masterStatefulset.Name, i)
-		m_replicas, _ := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), m_replicas_name, v1.GetOptions{})
-		if m_replicas != nil && m_replicas.Status.ContainerStatuses != nil {
-			ogCopy.Status.MasterIPs = append(ogCopy.Status.MasterIPs, m_replicas.Status.PodIP)
-		}
-	}
 
-	ogCopy.Status.ReplicasIPs = []string{}
-	for i := 0; i < int(*ogCopy.Spec.OpenGauss.Worker.Replicas); i++ {
-		w_replicas_name := fmt.Sprintf("%v-%d", replicasStatefulset.Name, i)
-		w_replicas, _ := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), w_replicas_name, v1.GetOptions{})
-		if w_replicas != nil && w_replicas.Status.ContainerStatuses != nil {
-			ogCopy.Status.ReplicasIPs = append(ogCopy.Status.ReplicasIPs, w_replicas.Status.PodIP)
-		}
-	}
-	AppendMyCatConfig(ogCopy, mycatConfigMap)
-	err = c.createOrUpdateConfigMap(og.Namespace, mycatConfigMap)
-	klog.V(4).Infof("mycat config: %s", mycatConfigMap.Data)
-	if err != nil {
-		klog.V(4).Infof("Create or update configmap error: %s", err)
-		return err
-	}
-	if (!c.clusterList[og.Namespace+"/"+og.Name] || (og.Status != nil && (og.Status.ReadyReplicas != ogCopy.Status.ReadyReplicas || og.Status.ReadyMaster != ogCopy.Status.ReadyMaster))) && replicasStatefulset.Status.ReadyReplicas == *og.Spec.OpenGauss.Worker.Replicas {
-		klog.Infof("Update mycat config: %s", og.Name)
-		time.Sleep(SyncInterval)
-		klog.Infof("Reload mycat: %s", og.Name)
-		err = c.restartMycat(og)
-		if err != nil {
-			klog.Infof("Reload mycat error:%s", err)
-		}
-	}
-	klog.Infof("%v, %v", ogCopy.Status.MasterIPs, ogCopy.Status.ReplicasIPs)
+	// }
+	// if (!c.clusterList[og.Namespace+"/"+og.Name] || (og.Status != nil && (og.Status.ReadyReplicas != ogCopy.Status.ReadyReplicas || og.Status.ReadyMaster != ogCopy.Status.ReadyMaster))) && replicasStatefulset.Status.ReadyReplicas == *og.Spec.OpenGauss.Worker.Replicas {
+	// 	klog.Infof("Update mycat config: %s", og.Name)
+	// 	time.Sleep(SyncInterval)
+	// 	klog.Infof("Reload mycat: %s", og.Name)
+	// 	err = c.restartMycat(og)
+	// 	if err != nil {
+	// 		klog.Infof("Reload mycat error:%s", err)
+	// 	}
+	// }
 	ogCopy, err = c.openGaussClientset.ControllerV1().OpenGausses(ogCopy.Namespace).UpdateStatus(context.TODO(), ogCopy, v1.UpdateOptions{})
 	if err != nil {
 		klog.Infoln("Failed to update opengauss status:", ogCopy.Name, " error:", err)
 	}
 	return err
+}
+
+func ExecCmd(db *sql.DB, ctx context.Context, cmd string) error {
+	_, err := db.ExecContext(ctx,
+		cmd,
+	)
+	if err != nil {
+		klog.Error(fmt.Sprintf("Error when executing cmd:\n %s", cmd))
+		return err
+	}		
+	return nil
+}
+
+func (c *Controller) createShardingsphereConfigmap(og *opengaussv1.OpenGauss, masterSts *appsv1.StatefulSet, replicaSts *appsv1.StatefulSet) (*corev1.ConfigMap, error) {
+	c.UpdateStatusIPs(og, masterSts, replicaSts)
+	sphereConfigMap := NewShardingSphereConfigMap(og)
+	var err error
+	if og.Spec.OpenGauss.Origin == nil {
+		sphereConfigMap, err = c.createOrGetConfigMap(og.Namespace, sphereConfigMap)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return sphereConfigMap, nil
+}
+
+func (c *Controller) UpdateShardingsphereReadwriteConfig(og *opengaussv1.OpenGauss, masterSts *appsv1.StatefulSet, replicaSts *appsv1.StatefulSet, svc *corev1.Service) error {
+	i := 0
+	
+	connStr := fmt.Sprintf("user=root dbname=postgres password=root host=%s port=5432 sslmode=disable", svc.Spec.ClusterIP)
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	masterIPs := []string{}
+	for i := 0; i < int(*og.Spec.OpenGauss.Master.Replicas); i++ {
+		m_replicas_name := fmt.Sprintf("%v-%d", masterSts.Name, i)
+		m_replicas, _ := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), m_replicas_name, v1.GetOptions{})
+		if m_replicas != nil && m_replicas.Status.ContainerStatuses != nil {
+			masterIPs = append(masterIPs, m_replicas.Status.PodIP)
+		}
+	}
+	replicasIPs := []string{}
+	for i := 0; i < int(*og.Spec.OpenGauss.Worker.Replicas); i++ {
+		w_replicas_name := fmt.Sprintf("%v-%d", replicaSts.Name, i)
+		w_replicas, _ := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), w_replicas_name, v1.GetOptions{})
+		if w_replicas != nil && w_replicas.Status.ContainerStatuses != nil {
+			replicasIPs = append(replicasIPs, w_replicas.Status.PodIP)
+		}
+	}
+	klog.Infof("masterIPs %v, replicasIPs %v", masterIPs, replicasIPs)
+	klog.Infof("og masterIPs %v, replicasIPs %v", og.Status.MasterIPs, og.Status.ReplicasIPs)
+
+	ctx, stop := context.WithCancel(context.Background())
+	defer stop()
+
+	// update new, rebooted Master's IP
+	if len(og.Status.MasterIPs) == 1 && len(masterIPs) == 1 && og.Status.MasterIPs[0] != masterIPs[0] {
+		cmd := fmt.Sprintf("alter resource primary_ds (HOST=%s, PORT=5432, DB=postgres, USER=gaussdb, PASSWORD=Enmo@123);", masterIPs[0])
+		err := ExecCmd(db, ctx, cmd)
+		if err != nil {
+			return err
+		}
+	}
+
+	// update rebooted, deleted, new Replica's IP
+	for ; i < len(og.Status.ReplicasIPs) && i < len(replicasIPs); i++ {
+		if (og.Status.ReplicasIPs[i] != replicasIPs[i]) {
+			cmd := fmt.Sprintf("alter resource primary_ds_%d (HOST=%s, PORT=5432, DB=postgres, USER=gaussdb, PASSWORD=Enmo@123);", i, replicasIPs[i])
+			err := ExecCmd(db, ctx, cmd)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if i < len(og.Status.ReplicasIPs) {
+		// Delete deleted resources
+		cmd := "ALTER READWRITE_SPLITTING RULE readwrite_ds(WRITE_RESOURCE=primary_ds, READ_RESOURCES("
+		for j := 0; j < i; j++ {
+			cmd += "replica_ds_" + strconv.Itoa(j) + ","
+		}
+		cmd = cmd[:len(cmd)-1] + "));"
+		klog.V(4).Info("Alter read-write rule before delete resources")
+		ExecCmd(db, ctx, cmd)
+
+		cmd = "drop resource "
+		for j := i; j < len(og.Status.ReplicasIPs); j++ {
+			cmd += "replica_ds_" + strconv.Itoa(j) + ","
+		}
+		cmd = cmd[:len(cmd)-1] + ";"
+		klog.V(4).Info("Delete Resource")
+		err = ExecCmd(db, ctx, cmd)
+		if err != nil {
+			return err
+		}
+	} else if i < len(replicasIPs) { // Add new Replica's IP
+		cmd := "add resource "
+		for j := i; j < len(replicasIPs); j++ {
+			cmd += "replica_ds_" + strconv.Itoa(j) + fmt.Sprintf("(HOST=%s, PORT=5432, DB=postgres, USER=gaussdb, PASSWORD=Enmo@123),", replicasIPs[j])
+		}
+		cmd = cmd[:len(cmd)-1] + ";"
+		klog.V(4).Info("Add Resource")
+		err := ExecCmd(db, ctx, cmd)
+		if err != nil {
+			return err
+		}
+
+		cmd = "ALTER READWRITE_SPLITTING RULE readwrite_ds(WRITE_RESOURCE=primary_ds, READ_RESOURCES("
+		for j := 0; j < len(replicasIPs); j++ {
+			cmd += "replica_ds_" + strconv.Itoa(j) + ","
+		}
+		cmd = cmd[:len(cmd)-1] + "));"
+		err = ExecCmd(db, ctx, cmd)
+		if err != nil {
+			return err
+		}			
+	}
+	
+	// update read-write splitting rule
+	// oldlen := len(og.Status.MasterIPs) + len(og.Status.ReplicasIPs)
+	// newlen := len(masterIPs) + len(replicasIPs)
+	// if  oldlen != newlen {
+	// 	cmd := "READWRITE_SPLITTING RULE readwrite_ds(WRITE_RESOURCE=primary_ds, READ_RESOURCES("
+	// 	for i := 0; i < newlen - 1; i++ {
+	// 		cmd += "replica_ds_" + strconv.Itoa(i) + ","
+	// 	}
+	// 	cmd = cmd[:len(cmd)-1] + "));"
+	// 	if oldlen == 0 || oldlen > newlen{
+	// 		cmd = "ADD " + cmd
+	// 	} else {
+	// 		cmd = "ALTER " + cmd
+	// 	}
+	// 	err := ExecCmd(db, ctx, cmd)
+	// 	if err != nil {
+	// 		return err
+	// 	}		
+	// }
+
+	og.Status.MasterIPs = masterIPs
+	og.Status.ReplicasIPs = replicasIPs
+	return nil
 }
 
 func (c *Controller) execCmd(ns string, pod string, cmd *[]string) error {
@@ -594,81 +755,6 @@ func (c *Controller) execCmd(ns string, pod string, cmd *[]string) error {
 	})
 	klog.V(4).Info("execommand:", stdout.String())
 	return err
-}
-
-// reloadMycatConfig when add/remove master/worker
-func (c *Controller) reloadMycatConfig(og *opengaussv1.OpenGauss) error {
-	// wait to sync configmap to mounted volume in pod
-	time.Sleep(time.Second * 60)
-	formatter := util.OpenGaussClusterFormatter(og)
-	mycatSts := formatter.MycatStatefulsetName()
-	if og.Spec.OpenGauss.Origin != nil {
-		mycatSts = og.Spec.OpenGauss.Origin.MycatClusterName
-	}
-	for i := 0; i < int(*og.Spec.OpenGauss.Mycat.Replicas); i++ {
-		mycatPod := fmt.Sprintf("%s-%d", mycatSts, i)
-		command := ("/root/config/updateConfig.sh")
-		cmd := []string{
-			"bash",
-			"-c",
-			command,
-		}
-		err := c.execCmd(og.Namespace, mycatPod, &cmd)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// restartMycat
-func (c *Controller) restartMycat(og *opengaussv1.OpenGauss) error {
-	mycatSts := ""
-	if og.Spec.OpenGauss.Origin == nil {
-		formatter := util.OpenGaussClusterFormatter(og)
-		mycatSts = formatter.MycatStatefulsetName()
-	} else {
-		mycatSts = og.Spec.OpenGauss.Origin.MycatClusterName
-	}
-	mycat, err := c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Get(context.TODO(), mycatSts, v1.GetOptions{})
-	if err != nil {
-		klog.Infof("restartMycat - get mycat %s:%s error %s", og.Name, mycatSts, err)
-		return err
-	}
-	oldVersion := -1
-	if mycat.Spec.Template.Annotations != nil {
-		oldVersion, err = strconv.Atoi(mycat.Spec.Template.Annotations["version/config"])
-	}
-	newVersion := int(time.Now().Unix())
-	if err == nil && newVersion-oldVersion <= MycatRestartInterval {
-		klog.V(4).Infof("mycat restart too soon: old version %d, new version %d", oldVersion, newVersion)
-		return nil
-	}
-	mycat.Spec.Template.Annotations = map[string]string{
-		"version/config": strconv.Itoa(newVersion),
-	}
-	_, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), mycat, v1.UpdateOptions{})
-	return err
-}
-
-// reloadMycatConfig when add/remove master/worker
-func (c *Controller) reloadMycatHost(og *opengaussv1.OpenGauss) error {
-	// wait to sync configmap to mounted volume in pod
-	mycatSts := og.Spec.OpenGauss.Origin.MycatClusterName
-	for i := 0; i < int(*og.Spec.OpenGauss.Mycat.Replicas); i++ {
-		mycatPod := fmt.Sprintf("%s-%d", mycatSts, i)
-		command := fmt.Sprintf("/root/config/addHost.sh %s", og.Spec.OpenGauss.Origin.Master)
-		cmd := []string{
-			"bash",
-			"-c",
-			command,
-		}
-		err := c.execCmd(og.Namespace, mycatPod, &cmd)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // doCheckpoint
@@ -704,7 +790,6 @@ func (c *Controller) cleanConfig(obj interface{}) {
 	if err != nil {
 		return
 	}
-	AppendMyCatConfig(&object, cm)
 	c.createOrUpdateConfigMap(object.Namespace, cm)
 	return
 }
@@ -712,13 +797,10 @@ func (c *Controller) cleanConfig(obj interface{}) {
 func (c *Controller) addNewMaster(og *opengaussv1.OpenGauss) error {
 	// 1. remove root cluster route
 	klog.Infof("Reload mycat host config:%s", og.Name)
-	err := c.reloadMycatHost(og)
-	if err != nil {
-		return err
-	}
+
 	// 2. check point
 	klog.Infof("Origin master do checkpoint:%s", og.Name)
-	err = c.doCheckpoint(og)
+	err := c.doCheckpoint(og)
 	if err != nil {
 		return err
 	}

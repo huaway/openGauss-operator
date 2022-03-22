@@ -3,6 +3,7 @@ module github.com/waterme7on/openGauss-operator
 go 1.16
 
 require (
+	github.com/lib/pq v1.10.4
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/common v0.26.0
 	// github.com/waterme7on/openGauss-operator v0.0.0-20210929060813-0fc8f815caca
@@ -12,7 +13,7 @@ require (
 	k8s.io/apimachinery v0.22.1
 	k8s.io/client-go v0.21.2
 	k8s.io/code-generator v0.0.0-20210313024825-5bc604e30f37
-	k8s.io/klog v1.0.0 // indirect
+	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.9.0
 )
 

@@ -7,7 +7,7 @@ const (
 	PodMemoryUsagePercentage     = "sum(container_memory_rss{pod=~\"%s-.*\"}) by(pod)/sum(cluster:namespace:pod_memory:active:kube_pod_container_resource_requests) by (pod) *100"
 	ClusterCpuUsagePercentage    = "sum(rate(container_cpu_usage_seconds_total{pod=~\"%s-(masters|replicas)-.*\"}[1m]))/sum(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests{pod=~\"%s-(masters|replicas)-.*\"})*100"
 	MasterCpuUsagePercentage     = "sum(rate(container_cpu_usage_seconds_total{pod=~\"%s-(masters)-.*\"}[1m]))/sum(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests{pod=~\"%s-(masters)-.*\"})*100"
-	WorkerCpuUsagePercentage     = "sum(rate(container_cpu_usage_seconds_total{pod=~\"%s-(replicas)-.*\"}[1m]))/sum(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests{pod=~\"%s-(replicas)-.*\"})*100"
+	WorkerCpuUsagePercentage	 = "sum(rate(container_cpu_usage_seconds_total{pod=~\"%s-(replicas)-.*\", image!=\"\", container!=\"POD\"}[1m]))  / sum(cluster:namespace:pod_cpu:active:kube_pod_container_resource_limits{pod=~\"%s-(replicas)-.*\"})*100"
 	ClusterMemoryUsagePercentage = "sum(container_memory_rss{pod=~\"%s-(masters|replicas)-.*\"})/sum(cluster:namespace:pod_memory:active:kube_pod_container_resource_requests{pod=~\"%s-(masters|replicas)-.*\"})*100"
 	ClusterNum                   = "sum(kube_pod_container_info{pod=~\"%s-(masters|replicas)-.\"})"
 )

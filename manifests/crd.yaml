@@ -111,39 +111,140 @@ spec:
                     type: object
                     required:
                       - replicas
+                      - resources
                     properties:
                       replicas:
                         type: integer
                         format: int32
                         minimum: 1
+                      resources:
+                        type: object
+                        required:
+                          - requests
+                          - limits
+                        properties:
+                          limits:
+                            type: object
+                            required:
+                              - cpu
+                              - memory
+                            properties:
+                              cpu:
+                                type: string
+                                pattern: '^(\d+m|\d+(\.\d{1,3})?)$'
+                              memory:
+                                type: string
+                                pattern: '^(\d+(e\d+)?|\d+(\.\d+)?(e\d+)?[EPTGMK]i?)$'
+                          requests:
+                            type: object
+                            required:
+                              - cpu
+                              - memory
+                            properties:
+                              cpu:
+                                type: string
+                                pattern: '^(\d+m|\d+(\.\d{1,3})?)$'
+                              memory:
+                                type: string
+                                pattern: '^(\d+(e\d+)?|\d+(\.\d+)?(e\d+)?[EPTGMK]i?)$'
                   worker:
                     type: object
                     required:
                       - replicas
+                      - resources
                     properties:
                       replicas:
                         type: integer
                         format: int32
                         minimum: 0
+                      resources:
+                        type: object
+                        required:
+                          - requests
+                          - limits
+                        properties:
+                          limits:
+                            type: object
+                            required:
+                              - cpu
+                              - memory
+                            properties:
+                              cpu:
+                                type: string
+                                pattern: '^(\d+m|\d+(\.\d{1,3})?)$'
+                              memory:
+                                type: string
+                                pattern: '^(\d+(e\d+)?|\d+(\.\d+)?(e\d+)?[EPTGMK]i?)$'
+                          requests:
+                            type: object
+                            required:
+                              - cpu
+                              - memory
+                            properties:
+                              cpu:
+                                type: string
+                                pattern: '^(\d+m|\d+(\.\d{1,3})?)$'
+                              memory:
+                                type: string
+                                pattern: '^(\d+(e\d+)?|\d+(\.\d+)?(e\d+)?[EPTGMK]i?)$'
+                  shardingsphere:
+                    type: object
+                    required:
+                      - replicas
+                      - image
+                      - resources
+                    properties:
+                      replicas:
+                        type: integer
+                        format: int32
+                        minimum: 1                      
+                      image:
+                        type: string
+                      resources:
+                        type: object
+                        required:
+                          - requests
+                          - limits
+                        properties:
+                          limits:
+                            type: object
+                            required:
+                              - cpu
+                              - memory
+                            properties:
+                              cpu:
+                                type: string
+                                pattern: '^(\d+m|\d+(\.\d{1,3})?)$'
+                              memory:
+                                type: string
+                                pattern: '^(\d+(e\d+)?|\d+(\.\d+)?(e\d+)?[EPTGMK]i?)$'
+                          requests:
+                            type: object
+                            required:
+                              - cpu
+                              - memory
+                            properties:
+                              cpu:
+                                type: string
+                                pattern: '^(\d+m|\d+(\.\d{1,3})?)$'
+                              memory:
+                                type: string
+                                pattern: '^(\d+(e\d+)?|\d+(\.\d+)?(e\d+)?[EPTGMK]i?)$'
                   origin:
                     type: object
                     required:
                       - pvc
-                      - mycatCluster
+                      - shardingsphereCluster
                       - master
                     properties:
                       pvc:
                         # shared pvc betweens masters
                         type: string
-                      mycatCluster:
-                        # shared mycat betweens masters
+                      shardingsphereCluster:
+                        # shared shardingsphere betweens masters
                         type: string
                       master:
                         type: string
-                  tables:
-                    type: array
-                    items:
-                      type: string
                   resources:
                     type: object
                     required:
@@ -174,17 +275,6 @@ spec:
                           memory:
                             type: string
                             pattern: '^(\d+(e\d+)?|\d+(\.\d+)?(e\d+)?[EPTGMK]i?)$'
-                  mycat:
-                    type: object
-                    required:
-                      - replicas
-                    properties:
-                      replicas:
-                        type: integer
-                        format: int32
-                        minimum: 1                      
-                      image:
-                        type: string
           status:
             type: object
             properties:
@@ -202,7 +292,7 @@ spec:
                 type: string
               readyReplicas:
                 type: string
-              readyMycat:
+              readyShardingsphere:
                 type: string
               masterStatefulset:
                 type: string

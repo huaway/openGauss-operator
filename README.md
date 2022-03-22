@@ -48,11 +48,14 @@ kubectl apply -f manifests/deploy.yaml
 ```
 
 
-Create Crd and example OpenGauss cluster
+Create Crd, PV and example OpenGauss cluster
 
 ```sh
+# Before execute following command, please label one node with app=opengauss.
 # create openGauss CustomResourceDefination
 kubectl create -f manifests/crd.yaml
+# create persistent volume
+kubectl create -f manifests/pv.yaml
 # create a openGauss object
 kubectl create -f example/opengauss.yaml
 ```
@@ -73,6 +76,11 @@ Add new master
 # example in example/opengauss.yaml and example/opengauss-new-master.yaml
 ```
 
+Enable auto-scaler
+```sh
+# run in a seperate shell
+go run processor/example.go
+```
 ## 2. Structure
 
 data flow and logic graph
@@ -101,6 +109,12 @@ components
 Use [code-generator](https://github.com/kubernetes/code-generator) to update code if you want to modify openGauss apis.
 
 You may need to manually install [code-generator](https://github.com/kubernetes/code-generator) or use command `go mod vendor` to create and populate `vendor` diretory to get the source file.
+
+Update process:
+1. Put this project under path ~/github.com/waterme7on.
+2. Modify pkg/apis/opengausscontroller/v1/types.go which describe fileds of custom resource Opengauss.
+4. Modify manifest/crd.yaml and apply.
+3. Run following build command.
 
 Build command:
 

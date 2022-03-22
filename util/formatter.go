@@ -5,8 +5,12 @@ package util
 
 import (
 	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
 
 	v1 "github.com/waterme7on/openGauss-operator/pkg/apis/opengausscontroller/v1"
+	"k8s.io/klog/v2"
 )
 
 func OpenGaussClusterFormatter(og *v1.OpenGauss) *openGaussClusterFormatter {
@@ -23,43 +27,67 @@ func (formatter *openGaussClusterFormatter) PersistentVolumeCLaimName() string {
 	return formatter.OpenGauss.Name + "-pvc"
 }
 
-func (formatter *openGaussClusterFormatter) MycatConfigMapName() string {
-	return formatter.OpenGauss.Name + "-mycat-cm"
+func (formatter *openGaussClusterFormatter) ShardingsphereConfigMapName() string {
+	return formatter.OpenGauss.Name + "-shardingsphere-cm"
 }
 
-func (formatter *openGaussClusterFormatter) MycatStatefulsetName() string {
-	return formatter.OpenGauss.Name + "-mycat-sts"
+func (formatter *openGaussClusterFormatter) ShardingsphereStatefulsetName() string {
+	return formatter.OpenGauss.Name + "-sts"
 }
 
-func (formatter *openGaussClusterFormatter) MycatServiceName() string {
-	return formatter.OpenGauss.Name + "-mycat-svc"
+func (formatter *openGaussClusterFormatter) ShardingsphereServiceName() string {
+	return formatter.OpenGauss.Name + "-shardingsphere-svc"
 }
 
-func (formatter *openGaussClusterFormatter) MycatTableConfig() string {
-	ret := ""
-	if formatter.OpenGauss.Spec.OpenGauss.Tables != nil {
-		for _, table := range formatter.OpenGauss.Spec.OpenGauss.Tables {
-			ret = fmt.Sprintf("%s%s\n", ret, table)
-		}
+func (formatter *openGaussClusterFormatter) ShardingSphereServerConfig() string {
+	ret, err := ioutil.ReadFile("shardingsphere-proxy/server.yaml")
+	if err != nil {
+		klog.Error("Unable to open file shardingsphere-proxy/server.yaml")
 	}
-	return ret
+	return string(ret)		
 }
 
-// MycatConfigMap returns mycat configs including master and replicas ip list
-func (formatter *openGaussClusterFormatter) MycatHostConfig() string {
-	// ret := ""
-	// ret := fmt.Sprintf("1 %s.%s 5432\n", Master(formatter.OpenGauss).ServiceName(), formatter.OpenGauss.Namespace)
-	// ret = fmt.Sprintf("%s3 %s.%s 5432\n", ret, Replica(formatter.OpenGauss).ServiceName(), formatter.OpenGauss.Namespace)
-	ret := ""
+func (formatter *openGaussClusterFormatter) ShardingsphereReadwriteConfig() (ret string) {
 	if formatter.OpenGauss.Status != nil {
-		for _, ip := range formatter.OpenGauss.Status.MasterIPs {
-			ret = fmt.Sprintf("%s1 %s 5432\n", ret, ip)
+		if len(formatter.OpenGauss.Status.MasterIPs) > 1 {
+			err := ""
+			for _, v := range formatter.OpenGauss.Status.MasterIPs {
+				err += v
+			}
+			klog.Error("MasterIPs: " + err)
+			panic("Number of opengauss master is bigger than 1")
 		}
-		for _, ip := range formatter.OpenGauss.Status.ReplicasIPs {
-			ret = fmt.Sprintf("%s2 %s 5432\n", ret, ip)
+		content, err := ioutil.ReadFile("shardingsphere-proxy/config-readwrite-splitting.yaml")
+		if err != nil {
+			klog.Error("Unable to open file shardingsphere-proxy/config-readwrite-splitting.yaml")
+			return ""
+		}	
+		ret = strings.Replace(string(content), "[master-ip]", formatter.OpenGauss.Status.MasterIPs[0], 1)
+		// create config for multi replicas
+		var left, right int
+		if left = strings.Index(ret, "replica_ds_0"); left == -1 {
+			klog.Error("No replicas configuration in config-readwrite-splitting.yaml")
+			return ""
 		}
+		if right = strings.Index(ret, "rules"); right == -1 {
+			klog.Error("No rule configuration in config-readwrite-splitting.yaml")
+			return ""
+		}
+
+		p := ""
+		for i := 1; i < len(formatter.OpenGauss.Status.ReplicasIPs); i++ {
+			p = p + "  " + strings.Replace(ret[left:right], "replica_ds_0", "replica_ds_" + strconv.Itoa(i), 1) 
+			ret += ",replica_ds_" + strconv.Itoa(i)
+		}		
+		ret = ret[:right] + p + ret[right:]
+
+		for _, ip := range(formatter.OpenGauss.Status.ReplicasIPs) {
+			ret = strings.Replace(ret, "[replica-ip]", ip, 1)
+		}
+		// ret = strings.Replace(ret, "[replica-ip]", formatter.OpenGauss.Status.ReplicasServiceIP, 1)
+		return
 	}
-	return ret
+	return ""
 }
 
 type StatefulsetFormatterInterface interface {
@@ -67,6 +95,7 @@ type StatefulsetFormatterInterface interface {
 	ServiceName() string
 	ReplConnInfo() string
 	ConfigMapName() string
+	NodeSelector() map[string]string
 }
 
 func Master(og *v1.OpenGauss) StatefulsetFormatterInterface {
@@ -104,6 +133,12 @@ func (formatter *MasterFormatter) ConfigMapName() string {
 	return formatter.OpenGauss.Name + "-master-config"
 }
 
+func (formatter *MasterFormatter) NodeSelector() map[string]string {
+	ans := make(map[string]string)
+	ans["app"] = "opengauss"
+	return ans
+}
+
 type ReplicaFormatter struct {
 	OpenGauss *v1.OpenGauss
 }
@@ -133,4 +168,10 @@ func (formatter *ReplicaFormatter) ReplConnInfo() string {
 
 func (formatter *ReplicaFormatter) ConfigMapName() string {
 	return formatter.OpenGauss.Name + "-replicas-config"
+}
+
+func (formatter *ReplicaFormatter) NodeSelector() map[string]string {
+	ans := make(map[string]string)
+	ans["app"] = "opengauss"
+	return ans	
 }

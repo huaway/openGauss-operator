@@ -28,11 +28,10 @@ type OpenGaussSpec struct {
 
 // Define OpenGauss's needs for master and replicas
 type OpenGaussClusterConfiguration struct {
-	Master *OpenGaussStatefulSet   `json:"master"` // Master Configuration
-	Worker *OpenGaussStatefulSet   `json:"worker"` // Replicas Configuration
-	Mycat  *MycatStatefulSet       `json:"mycat"`  // Mycat Configuration
-	Origin *OriginOpenGaussCluster `json:"origin"` // Multi-Master shared info
-	Tables []string                `json:"tables"`
+	Master 			*OpenGaussStatefulSet   		`json:"master"` // Master Configuration
+	Worker 			*OpenGaussStatefulSet   		`json:"worker"` // Replicas Configuration
+	Shardingsphere  *ShardingsphereStatefulSet      `json:"shardingsphere"`  // Shardingsphere Configuration
+	Origin 			*OriginOpenGaussCluster 		`json:"origin"` // Multi-Master shared info
 }
 
 type OriginOpenGaussCluster struct {
@@ -46,7 +45,7 @@ type OpenGaussStatefulSet struct {
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-type MycatStatefulSet struct {
+type ShardingsphereStatefulSet struct {
 	Replicas  *int32                       `json:"replicas"`
 	Image     string                       `json:"image"`
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -56,8 +55,8 @@ type MycatStatefulSet struct {
 type OpenGaussStatus struct {
 	OpenGaussStatus           string   `json:"opengaussStatus"`         // OpenGauss if ready or not
 	ReadyMaster               string   `json:"readyMaster,omitempty"`   // Ready Master number
-	ReadyReplicas             string   `json:"readyReplicas,omitempty"` // Ready Replicas number
-	ReadyMycat                string   `json:"readyMycat,omitempty"`
+	ReadyReplicas    	      string   `json:"readyReplicas,omitempty"` // Ready Replicas number
+	ReadyShardingsphere       string   `json:"readyMycat,omitempty"`
 	MasterStatefulset         string   `json:"masterStatefulset,omitempty"`         // name of master statefulset
 	ReplicasStatefulset       string   `json:"replicasStatefulset,omitempty"`       // name of replicas statefulset
 	PersistentVolumeClaimName string   `json:"persistentVolumeClaimName,omitempty"` // name of pvc
