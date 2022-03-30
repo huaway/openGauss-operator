@@ -148,8 +148,6 @@ func NewStatefulsets(id Identity, og *v1.OpenGauss) (res *appsv1.StatefulSet) {
 	res.Spec.Template.Spec.Containers[0].Env[0].Value = formatter.ReplConnInfo()
 	// res.Spec.Template.Spec.InitContainers[0].Env[0].Value = formatter.ReplConnInfo()
 	res.Spec.Template.Spec.Volumes[1].ConfigMap.Name = formatter.ConfigMapName()
-	pvcFormatter := util.OpenGaussClusterFormatter(og)
-	res.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName = pvcFormatter.PersistentVolumeCLaimName()
 	res.Spec.Template.Spec.NodeSelector = formatter.NodeSelector()
 	if og.Spec.OpenGauss.Origin != nil {
 		res.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName = og.Spec.OpenGauss.Origin.PVC
@@ -575,9 +573,15 @@ func statefulsetTemplate() *appsv1.StatefulSet {
 					Volumes: []corev1.Volume{
 						{
 							Name: "opengauss-pvc",
+							// VolumeSource: corev1.VolumeSource{
+							// 	PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							// 		ClaimName: "",
+							// 	},
+							// },
 							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: "",
+								NFS: &corev1.NFSVolumeSource{
+									Server: "10.77.50.211",
+									Path: "/opt/nfs/",
 								},
 							},
 						},

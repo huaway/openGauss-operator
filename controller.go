@@ -349,13 +349,6 @@ func (c *Controller) syncHandler(key string) error {
 
 	// 1. check if all components are deployed, includes service, configmap, master and worker statefulsets
 	// create or get pvc
-	var pvc *corev1.PersistentVolumeClaim = nil
-	var pvcConfig *corev1.PersistentVolumeClaim = nil
-	pvcConfig = NewPersistentVolumeClaim(og)
-	pvc, err = c.createOrGetPVC(og.Namespace, pvcConfig)
-	if err != nil {
-		return err
-	}
 
 	if !c.clusterList[key] && og.Spec.OpenGauss.Origin != nil {
 		// a new cluster is created
@@ -515,14 +508,7 @@ func (c *Controller) syncHandler(key string) error {
 			}
 		}
 	}
-	// checked if persistent volume claims are correct
-	if og.Spec.OpenGauss.Origin == nil && pvc != nil && (*og.Spec.Resources.Requests.Storage() != *pvc.Spec.Resources.Requests.Storage() || og.Spec.StorageClassName != *pvc.Spec.StorageClassName) {
-		klog.V(4).Infof("Update OpenGauss pvc storage")
-		pvc, err = c.kubeClientset.CoreV1().PersistentVolumeClaims(og.Namespace).Update(context.TODO(), NewPersistentVolumeClaim(og), v1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-	}
+
 	// check if shardingsphere statefulset is correct
 	if og.Spec.OpenGauss.Origin == nil && shardingsphereStatefulset != nil && *og.Spec.OpenGauss.Shardingsphere.Replicas != *shardingsphereStatefulset.Spec.Replicas {
 		klog.V(4).Infof("Openguass %s shardingsphere deployments, expected replicas: %d, actual replicas: %d", og.Name, *og.Spec.OpenGauss.Shardingsphere.Replicas, *shardingsphereStatefulset.Spec.Replicas)
@@ -533,7 +519,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// finally update opengauss resource status
-	err = c.updateOpenGaussStatus(og, masterStatefulset, replicasStatefulset, shardingsphereStatefulset, shardingsphereSvc, pvc)
+	err = c.updateOpenGaussStatus(og, masterStatefulset, replicasStatefulset, shardingsphereStatefulset, shardingsphereSvc)
 	if err != nil {
 		return err
 	}
@@ -552,8 +538,7 @@ func (c *Controller) updateOpenGaussStatus(
 	masterStatefulset  		  *appsv1.StatefulSet,
 	replicasStatefulset       *appsv1.StatefulSet,
 	shardingsphereStatefulSet *appsv1.StatefulSet,
-	shardingsphereSvc 		  *corev1.Service,
-	pvc *corev1.PersistentVolumeClaim) error {
+	shardingsphereSvc 		  *corev1.Service) error {
 	var err error
 	ogCopy := og.DeepCopy()
 	if ogCopy.Status == nil {
@@ -567,22 +552,11 @@ func (c *Controller) updateOpenGaussStatus(
 	if shardingsphereStatefulSet != nil {
 		ogCopy.Status.ReadyShardingsphere = (strconv.Itoa(int(shardingsphereStatefulSet.Status.ReadyReplicas)))
 	}
-	ogCopy.Status.PersistentVolumeClaimName = pvc.Name
 	if (masterStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.Master.Replicas &&
 		(replicasStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.Worker.Replicas {
 		ogCopy.Status.OpenGaussStatus = "READY"
 	}
 
-	// }
-	// if (!c.clusterList[og.Namespace+"/"+og.Name] || (og.Status != nil && (og.Status.ReadyReplicas != ogCopy.Status.ReadyReplicas || og.Status.ReadyMaster != ogCopy.Status.ReadyMaster))) && replicasStatefulset.Status.ReadyReplicas == *og.Spec.OpenGauss.Worker.Replicas {
-	// 	klog.Infof("Update mycat config: %s", og.Name)
-	// 	time.Sleep(SyncInterval)
-	// 	klog.Infof("Reload mycat: %s", og.Name)
-	// 	err = c.restartMycat(og)
-	// 	if err != nil {
-	// 		klog.Infof("Reload mycat error:%s", err)
-	// 	}
-	// }
 	ogCopy, err = c.openGaussClientset.ControllerV1().OpenGausses(ogCopy.Namespace).UpdateStatus(context.TODO(), ogCopy, v1.UpdateOptions{})
 	if err != nil {
 		klog.Infoln("Failed to update opengauss status:", ogCopy.Name, " error:", err)
