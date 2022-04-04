@@ -1,0 +1,29 @@
+apiVersion: controller.k8s.do/v1
+kind: OpenGauss
+metadata:
+  name: a
+  namespace: test
+spec:
+  image: ructrx/og-ivld-buf2:1.0.1
+  imagePullPolicy: IfNotPresent
+  opengauss:
+    master:
+      replicas: 1
+    shardingSphere:
+      image: apache/shardingsphere-proxy
+      replicas: 1
+    tables:
+    - sbtest1
+    - sbtest2
+    - sbtest3
+    - sbtest4
+    - sbtest5
+    worker:
+      replicas: 2
+  storageClassName: opengauss-local
+  resources:
+    requests:
+      storage: 50Gi
+    limits:
+      cpu: 1500m
+      memory: 2Gi
