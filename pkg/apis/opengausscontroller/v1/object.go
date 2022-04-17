@@ -7,7 +7,7 @@ import "strconv"
 
 const (
 	readyStatus   string = "READY"
-	unreadyStatus        = "NOT-READY"
+	unreadyStatus string = "NOT-READY"
 )
 
 // IsReady check if opengauss is ready
@@ -22,5 +22,8 @@ func (og *OpenGauss) IsMasterDeployed() bool {
 
 // IsReplicaDeployed check if opengauss's replicas is deployed
 func (og *OpenGauss) IsReplicaDeployed() bool {
-	return og.Status.ReadyReplicas == strconv.Itoa(int(*og.Spec.OpenGauss.Worker.Replicas))
+	ans := og.Status.ReadyReplicasSmall == strconv.Itoa(int(*og.Spec.OpenGauss.WorkerSmall.Replicas))
+	ans = ans && og.Status.ReadyReplicasMid == strconv.Itoa(int(*og.Spec.OpenGauss.WorkerMid.Replicas))
+	ans = ans && og.Status.ReadyReplicasLarge == strconv.Itoa(int(*og.Spec.OpenGauss.WorkerLarge.Replicas))
+	return ans
 }

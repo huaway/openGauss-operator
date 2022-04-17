@@ -86,7 +86,7 @@ func main() {
 	go s.Run()
 
 	klog.Info("Run controller worker")
-	if err = controller.Run(2, stopCh); err != nil {
+	if err = controller.Run(1, stopCh); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}
 

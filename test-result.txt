@@ -1,0 +1,73 @@
+2v4G:
+    transactions:                        1333   (11.10 per sec.)
+         avg:                                   90.06
+    transactions:                        2216   (18.45 per sec.)
+         avg:                                  108.36
+    transactions:                        3043   (25.33 per sec.)
+         avg:                                  157.87
+    transactions:                        2366   (19.65 per sec.)
+         avg:                                  407.03
+4v8G:
+    transactions:                        1307   (10.88 per sec.)
+         avg:                                   91.87
+    transactions:                        2195   (18.28 per sec.)
+         avg:                                  109.38
+    transactions:                        3078   (25.63 per sec.)
+         avg:                                  156.02
+    transactions:                        4923   (40.96 per sec.)
+         avg:                                  195.19
+8v16G-by-pod:
+thread 1
+8v16G-by-pod:
+thread 1
+    transactions:                        1427   (11.89 per sec.)
+         avg:                                   84.12
+thread 2
+    transactions:                        2874   (23.94 per sec.)
+         avg:                                   83.55
+thread 4
+    transactions:                        5148   (42.87 per sec.)
+         avg:                                   93.29
+thread 8
+    transactions:                        5392   (44.89 per sec.)
+         avg:                                  178.15
+thread 16
+    transactions:                        2389   (19.78 per sec.)
+         avg:                                  806.41
+2v4G-by-shardingsphere:
+thread 1
+    transactions:                        1327   (11.05 per sec.)
+         avg:                                   90.49
+thread 2
+    transactions:                        2321   (19.33 per sec.)
+         avg:                                  103.46
+thread 4
+    transactions:                        1722   (14.34 per sec.)
+         avg:                                  278.89
+thread 8
+    transactions:                        1199   (9.96 per sec.)
+         avg:                                  802.62
+4v8G-by-shardingsphere:
+thread 1
+    transactions:                        1304   (10.86 per sec.)
+         avg:                                   92.05
+thread 2
+    transactions:                        2279   (18.98 per sec.)
+         avg:                                  105.36
+thread 4
+    transactions:                        3087   (25.71 per sec.)
+         avg:                                  155.54
+thread 8
+    transactions:                        2265   (18.85 per sec.)
+         avg:                                  424.24
+1v2G-by-shardingsphere:
+thread 1
+thread 2
+    transactions:                        1237   (10.30 per sec.)
+         avg:                                  194.20
+thread 4
+    transactions:                        864    (7.17 per sec.)
+         avg:                                  557.82
+thread 8
+    transactions:                        650    (5.39 per sec.)
+         avg:                                 1480.79

@@ -31,7 +31,9 @@ type Identity int
 
 const (
 	Master Identity = iota + 1
-	Replicas
+	ReplicasSmall
+	ReplicasMid
+	ReplicasLarge
 )
 
 // NewPersistentVolumeCLaim returns pvc according to og's configuration
@@ -91,12 +93,11 @@ func NewMasterStatefulsets(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
 	return
 }
 
-// NewReplicaStatefulsets returns replica statefulset object
-func NewReplicaStatefulsets(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
-	sts = NewStatefulsets(Replicas, og)
-	klog.V(4).Info(og.Spec.OpenGauss.Worker.Resources)
-	if og.Spec.OpenGauss.Worker.Resources != nil {
-		res := og.Spec.OpenGauss.Worker.Resources
+func NewReplicaSmallSts(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
+	sts = NewStatefulsets(ReplicasSmall, og)
+	klog.V(4).Info(og.Spec.OpenGauss.WorkerSmall.Resources)
+	if og.Spec.OpenGauss.WorkerSmall.Resources != nil {
+		res := og.Spec.OpenGauss.WorkerSmall.Resources
 		if res.Requests != nil {
 			if res.Requests.Cpu() != nil {
 				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU] = *res.Requests.Cpu()
@@ -117,7 +118,66 @@ func NewReplicaStatefulsets(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
 	if strings.Contains(og.Spec.Image, "base") {
 		sts.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName += "-r"
 	}
+	
 	return
+}
+
+func NewReplicaMidSts(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
+	sts = NewStatefulsets(ReplicasMid, og)
+	klog.V(4).Info(og.Spec.OpenGauss.WorkerMid.Resources)
+	if og.Spec.OpenGauss.WorkerMid.Resources != nil {
+		res := og.Spec.OpenGauss.WorkerMid.Resources
+		if res.Requests != nil {
+			if res.Requests.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU] = *res.Requests.Cpu()
+			}
+			if res.Requests.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory] = *res.Requests.Memory()
+			}
+		}
+		if res.Limits != nil {
+			if res.Limits.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = *res.Limits.Cpu()
+			}
+			if res.Limits.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] = *res.Limits.Memory()
+			}				
+		}
+	}
+	if strings.Contains(og.Spec.Image, "base") {
+		sts.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName += "-r"
+	}
+	
+	return	
+}
+
+func NewReplicaLargeSts(og *v1.OpenGauss) (sts *appsv1.StatefulSet) {
+	sts = NewStatefulsets(ReplicasLarge, og)
+	klog.V(4).Info(og.Spec.OpenGauss.WorkerLarge.Resources)
+	if og.Spec.OpenGauss.WorkerLarge.Resources != nil {
+		res := og.Spec.OpenGauss.WorkerMid.Resources
+		if res.Requests != nil {
+			if res.Requests.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU] = *res.Requests.Cpu()
+			}
+			if res.Requests.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory] = *res.Requests.Memory()
+			}
+		}
+		if res.Limits != nil {
+			if res.Limits.Cpu() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU] = *res.Limits.Cpu()
+			}
+			if res.Limits.Memory() != nil {
+				sts.Spec.Template.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory] = *res.Limits.Memory()
+			}				
+		}
+	}
+	if strings.Contains(og.Spec.Image, "base") {
+		sts.Spec.Template.Spec.Volumes[0].PersistentVolumeClaim.ClaimName += "-r"
+	}
+	
+	return	
 }
 
 // NewStatefulsets returns a statefulset object according to id
@@ -131,9 +191,17 @@ func NewStatefulsets(id Identity, og *v1.OpenGauss) (res *appsv1.StatefulSet) {
 	case Master:
 		formatter = util.Master(og)
 		res.Spec.Replicas = util.Int32Ptr(*og.Spec.OpenGauss.Master.Replicas)
-	case Replicas:
-		formatter = util.Replica(og)
-		res.Spec.Replicas = util.Int32Ptr(*og.Spec.OpenGauss.Worker.Replicas)
+	case ReplicasSmall:
+		formatter = util.ReplicaSmall(og)
+		res.Spec.Replicas = util.Int32Ptr(*og.Spec.OpenGauss.WorkerSmall.Replicas)
+		res.Spec.Template.Spec.Containers[0].Args[1] = "standby"
+	case ReplicasMid:
+		formatter = util.ReplicaMid(og)
+		res.Spec.Replicas = util.Int32Ptr(*og.Spec.OpenGauss.WorkerMid.Replicas)
+		res.Spec.Template.Spec.Containers[0].Args[1] = "standby"
+	case ReplicasLarge:
+		formatter = util.ReplicaLarge(og)
+		res.Spec.Replicas = util.Int32Ptr(*og.Spec.OpenGauss.WorkerLarge.Replicas)
 		res.Spec.Template.Spec.Containers[0].Args[1] = "standby"
 	default:
 		return
@@ -161,8 +229,8 @@ func NewMasterService(og *v1.OpenGauss) (res *corev1.Service) {
 	return NewOpengaussService(og, Master)
 }
 
-func NewReplicasService(og *v1.OpenGauss) (res *corev1.Service) {
-	return NewOpengaussService(og, Replicas)
+func NewReplicasService(id Identity, og *v1.OpenGauss) (res *corev1.Service) {
+	return NewOpengaussService(og, id)
 }
 
 func NewOpengaussService(og *v1.OpenGauss, id Identity) (res *corev1.Service) {
@@ -174,8 +242,12 @@ func NewOpengaussService(og *v1.OpenGauss, id Identity) (res *corev1.Service) {
 	switch id {
 	case Master:
 		formatter = util.Master(og)
-	case Replicas:
-		formatter = util.Replica(og)
+	case ReplicasSmall:
+		formatter = util.ReplicaSmall(og)
+	case ReplicasMid:
+		formatter = util.ReplicaMid(og)
+	case ReplicasLarge:
+		formatter = util.ReplicaLarge(og)
 	default:
 		return
 	}
@@ -196,20 +268,29 @@ func NewMasterConfigMap(og *v1.OpenGauss) (*unstructured.Unstructured, schema.Gr
 	return NewConfigMap(Master, og)
 }
 
-func NewReplicaConfigMap(og *v1.OpenGauss) (*unstructured.Unstructured, schema.GroupVersionResource) {
-	return NewConfigMap(Replicas, og)
+func NewReplicaConfigMap(id Identity, og *v1.OpenGauss) (*unstructured.Unstructured, schema.GroupVersionResource) {
+	return NewConfigMap(id, og)
 }
 
 // NewConfigMap: return New Configmap as unstructured.Unstructured and configMap Schema
 // modify replConnInfo of configmap data["postgresql.conf"] according to the id of og
 func NewConfigMap(id Identity, og *v1.OpenGauss) (*unstructured.Unstructured, schema.GroupVersionResource) {
-	unstructuredMap := loadConfigMapTemplate()
 	var replConnInfo string
 	var formatter util.StatefulsetFormatterInterface
-	if id == Master {
+	var unstructuredMap map[string]interface{}
+	switch id {
+	case Master:
 		formatter = util.Master(og)
-	} else {
-		formatter = util.Replica(og)
+		unstructuredMap = loadConfigMapTemplate(Master)
+	case ReplicasSmall:
+		formatter = util.ReplicaSmall(og)
+		unstructuredMap = loadConfigMapTemplate(ReplicasSmall)
+	case ReplicasMid:
+		formatter = util.ReplicaMid(og)
+		unstructuredMap = loadConfigMapTemplate(ReplicasMid)
+	case ReplicasLarge:
+		formatter = util.ReplicaLarge(og)
+		unstructuredMap = loadConfigMapTemplate(ReplicasLarge)
 	}
 	replConnInfo = "\n" + formatter.ReplConnInfo() + "\n"
 	configMap := &unstructured.Unstructured{Object: unstructuredMap}
@@ -325,6 +406,7 @@ func NewShardingSphereStatefulset(og *v1.OpenGauss) (res *appsv1.StatefulSet) {
 							},
 						},
 					},
+					NodeSelector: map[string]string{"app": "opengauss"},
 				},
 			},
 		},
@@ -660,10 +742,19 @@ func DeploymentTemplate(og *v1.OpenGauss) *appsv1.Deployment {
 }
 
 // load configmap file from /config/config.yaml
-func loadConfigMapTemplate() map[string]interface{} {
-
-	// configMap := corev1.ConfigMap{}
-	fileBytes, err := ioutil.ReadFile("configs/config.yaml")
+func loadConfigMapTemplate(id Identity) map[string]interface{} {
+	var fileBytes []byte
+	var err error
+	switch id {
+	case Master:
+		fileBytes, err = ioutil.ReadFile("configs/config.yaml")
+	case ReplicasSmall:
+		fileBytes, err = ioutil.ReadFile("configs/config-small.yaml")
+	case ReplicasMid:
+		fileBytes, err = ioutil.ReadFile("configs/config-mid.yaml")
+	case ReplicasLarge:
+		fileBytes, err = ioutil.ReadFile("configs/config-large.yaml")
+	}
 	if err != nil {
 		fmt.Println("[error]", err)
 	}

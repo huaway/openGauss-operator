@@ -3,20 +3,21 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"time"
-	"database/sql"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	_ "github.com/lib/pq"
 	opengaussv1 "github.com/waterme7on/openGauss-operator/pkg/apis/opengausscontroller/v1"
 	clientset "github.com/waterme7on/openGauss-operator/pkg/generated/clientset/versioned"
 	ogscheme "github.com/waterme7on/openGauss-operator/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/waterme7on/openGauss-operator/pkg/generated/informers/externalversions/opengausscontroller/v1"
 	listers "github.com/waterme7on/openGauss-operator/pkg/generated/listers/opengausscontroller/v1"
-	_ "github.com/lib/pq"
+	"github.com/waterme7on/openGauss-operator/util"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -42,6 +43,17 @@ import (
 )
 
 const controllerAgentName = "openGauss-operator"
+const (
+	dbPort				  = "5432"
+	dbName				  = "postgres"
+	dbUser				  = "gaussdb"
+	dbPassword			  = "Enmo@123"
+
+	readWriteName		  = "readwrite_rule"
+	smallWeight			  = "1"
+	midWeight			  = "2"
+	largeWeight 		  = "4"
+)
 
 const (
 	// SuccessSynced is used as part of the Event 'reason' when a Foo is synced
@@ -211,6 +223,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	// starting workers
 	klog.Infoln("Starting workers")
 	// Launch workers to process OpenGauss Resources
+	// Don't support concurrency, which means onlt one thread
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
@@ -277,34 +290,59 @@ func (c *Controller) processNextWorkItem() bool {
 	return true
 }
 
-func (c *Controller) UpdateStatusIPs(og *opengaussv1.OpenGauss, masterSts *appsv1.StatefulSet, replicaSts *appsv1.StatefulSet) error {
+func (c *Controller) UpdateStatusIPs(og *opengaussv1.OpenGauss) error {
+	klog.Info("Update opengauss IPs")
 	if og.Status == nil {
 		og.Status = &opengaussv1.OpenGaussStatus{}
 	}
+	formatter := util.OpenGaussClusterFormatter(og)
 
-	og.Status.MasterIPs = []string{}
-	klog.Info("Update opengauss IPs")
+	var masterIPs []string
 	for i := 0; i < int(*og.Spec.OpenGauss.Master.Replicas); i++ {
-		masterName := fmt.Sprintf("%v-%d", masterSts.Name, i)
+		masterName := fmt.Sprintf("%v-%d", formatter.MasterStsName(), i)
 		for {
 			master, err := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), masterName, v1.GetOptions{})
 			if err != nil {
 				klog.Error("Error when update Opengauss Master IPs")
+				klog.Error(err.Error())
 			}
 			if master != nil && master.Status.ContainerStatuses != nil {
-				if len(master.Status.PodIP) == 0 {
+				if len(master.Status.PodIP) == 0 { // Wait until master statefulset is ready
 					time.Sleep(time.Millisecond * 500)
 					continue
 				}
-				klog.Info("master ip: " + master.Status.PodIP)
-				og.Status.MasterIPs = append(og.Status.MasterIPs, master.Status.PodIP)
+				masterIPs = append(masterIPs, master.Status.PodIP)
 				break
 			}
 		}
 	}	
-	og.Status.ReplicasIPs = []string{}
-	for i := 0; i < int(*og.Spec.OpenGauss.Worker.Replicas); i++ {
-		replicasName := fmt.Sprintf("%v-%d", replicaSts.Name, i)
+	// klog.Info("master ip: ")
+	// klog.Info(masterIPs)
+
+	var replicaSmallIPs []string
+	for i := 0; i < int(*og.Spec.OpenGauss.WorkerSmall.Replicas); i++ {
+		replicasName := fmt.Sprintf("%v-%d", formatter.ReplicasSmallStsName(), i)
+		for {
+			replicas, err := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), replicasName, v1.GetOptions{})
+			if err != nil {
+				klog.Error("Error when update Opengauss Replica IPs")
+			}
+			if replicas != nil && replicas.Status.ContainerStatuses != nil {
+				if len(replicas.Status.PodIP) == 0 { // Wait until replicas statefulset is ready
+					time.Sleep(time.Millisecond * 500)
+					continue
+				}
+				replicaSmallIPs = append(replicaSmallIPs, replicas.Status.PodIP)
+				break
+			}
+		}
+	}
+	// klog.Info("replica-small ip: ")
+	// klog.Info(replicaSmallIPs)
+
+	var replicaMidIPs []string
+	for i := 0; i < int(*og.Spec.OpenGauss.WorkerMid.Replicas); i++ {
+		replicasName := fmt.Sprintf("%v-%d", formatter.ReplicasMidStsName(), i)
 		for {
 			replicas, err := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), replicasName, v1.GetOptions{})
 			if err != nil {
@@ -315,12 +353,40 @@ func (c *Controller) UpdateStatusIPs(og *opengaussv1.OpenGauss, masterSts *appsv
 					time.Sleep(time.Millisecond * 500)
 					continue
 				}
-				klog.Info("replica ip: " + replicas.Status.PodIP)
-				og.Status.ReplicasIPs = append(og.Status.ReplicasIPs, replicas.Status.PodIP)
+				replicaMidIPs = append(replicaMidIPs, replicas.Status.PodIP)
 				break
 			}
 		}
 	}
+	// klog.Info("replica-mid ip: ")
+	// klog.Info(replicaMidIPs)
+
+	var replicaLargeIPs []string
+	for i := 0; i < int(*og.Spec.OpenGauss.WorkerLarge.Replicas); i++ {
+		replicasName := fmt.Sprintf("%v-%d", formatter.ReplicasLargeStsName(), i)
+		for {
+			replicas, err := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), replicasName, v1.GetOptions{})
+			if err != nil {
+				klog.Error("Error when update Opengauss Replica IPs")
+			}
+			if replicas != nil && replicas.Status.ContainerStatuses != nil {
+				if len(replicas.Status.PodIP) == 0 {
+					time.Sleep(time.Millisecond * 500)
+					continue
+				}
+				replicaLargeIPs = append(replicaLargeIPs, replicas.Status.PodIP)
+				break
+			}
+		}
+	}
+	// klog.Info("replica-large ip: ")
+	// klog.Info(replicaLargeIPs)
+
+	og.Status.MasterIPs = masterIPs
+	og.Status.ReplicasSmallIPs = replicaSmallIPs
+	og.Status.ReplicasMidIPs = replicaMidIPs
+	og.Status.ReplicasLargeIPs = replicaLargeIPs
+
 	return nil
 }
 
@@ -377,11 +443,15 @@ func (c *Controller) syncHandler(key string) error {
 	var masterStatefulset *appsv1.StatefulSet = nil
 	masterStsConfig = NewMasterStatefulsets(og)
 	masterStatefulset, err = c.createOrGetStatefulset(og.Namespace, masterStsConfig)
-	// If an error occurs during Get/Create, we'll requeue the item so we can
-	// attempt processing again later. This could have been caused by a
-	// temporary network failure, or any other transient reason.
 	if err != nil {
 		return err
+	}
+	if *og.Spec.OpenGauss.Master.Replicas != *masterStatefulset.Spec.Replicas {
+		klog.V(4).Infof("OpenGauss '%s' specified master replicas: %d, master statefulset Replicas %d", name, *og.Spec.OpenGauss.Master.Replicas, *masterStatefulset.Spec.Replicas)
+		masterStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), NewMasterStatefulsets(og), v1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
 	}
 
 	// create or get master service
@@ -392,51 +462,100 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// create or update replica configmap
-	replicaConfigMap, relicaConfigMapRes := NewReplicaConfigMap(og)
+	replicaConfigMap, relicaConfigMapRes := NewReplicaConfigMap(ReplicasSmall, og)
+	err = c.createOrUpdateDynamicConfigMap(og.Namespace, replicaConfigMap, relicaConfigMapRes)
+	if err != nil {
+		return err
+	}
+	replicaConfigMap, relicaConfigMapRes = NewReplicaConfigMap(ReplicasMid, og)
+	err = c.createOrUpdateDynamicConfigMap(og.Namespace, replicaConfigMap, relicaConfigMapRes)
+	if err != nil {
+		return err
+	}
+	replicaConfigMap, relicaConfigMapRes = NewReplicaConfigMap(ReplicasLarge, og)
 	err = c.createOrUpdateDynamicConfigMap(og.Namespace, replicaConfigMap, relicaConfigMapRes)
 	if err != nil {
 		return err
 	}
 
-	// create or get replica statefulset
+	// create or update replica statefulset
 	var replicaStsConfig *appsv1.StatefulSet = nil
-	var replicasStatefulset *appsv1.StatefulSet = nil
-	replicaStsConfig = NewReplicaStatefulsets(og)
-	replicasStatefulset, err = c.createOrGetStatefulset(og.Namespace, replicaStsConfig)
-	// If an error occurs during Get/Create, we'll requeue the item so we can
-	// attempt processing again later. This could have been caused by a
-	// temporary network failure, or any other transient reason.
+	var replicasSmallStatefulset *appsv1.StatefulSet = nil
+	var replicasMidStatefulset *appsv1.StatefulSet = nil
+	var replicasLargeStatefulset *appsv1.StatefulSet = nil
+	replicaStsConfig = NewReplicaSmallSts(og)
+	replicasSmallStatefulset, err = c.createOrGetStatefulset(og.Namespace, replicaStsConfig)
 	if err != nil {
 		return err
 	}
-	// create or get master service
-	replicaSvcConfig := NewReplicasService(og)
+	if *og.Spec.OpenGauss.WorkerSmall.Replicas != *replicasSmallStatefulset.Spec.Replicas {
+		klog.V(4).Infof("OpenGauss '%s' specified small replicas: %d, small statefulset Replicas %d", name, *og.Spec.OpenGauss.WorkerSmall.Replicas, *replicasSmallStatefulset.Spec.Replicas)
+		replicasSmallStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), replicaStsConfig, v1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	replicaStsConfig = NewReplicaMidSts(og)
+	replicasMidStatefulset, err = c.createOrGetStatefulset(og.Namespace, replicaStsConfig)
+	if err != nil {
+		return err
+	}
+	if *og.Spec.OpenGauss.WorkerMid.Replicas != *replicasMidStatefulset.Spec.Replicas {
+		klog.V(4).Infof("OpenGauss '%s' specified mid replicas: %d, mid statefulset Replicas %d", name, *og.Spec.OpenGauss.WorkerMid.Replicas, *replicasMidStatefulset.Spec.Replicas)
+		replicasMidStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), replicaStsConfig, v1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	replicaStsConfig = NewReplicaLargeSts(og)
+	replicasLargeStatefulset, err = c.createOrGetStatefulset(og.Namespace, replicaStsConfig)
+	if err != nil {
+		return err
+	}
+	if *og.Spec.OpenGauss.WorkerLarge.Replicas != *replicasLargeStatefulset.Spec.Replicas {
+		klog.V(4).Infof("OpenGauss '%s' specified large replicas: %d, large statefulset Replicas %d", name, *og.Spec.OpenGauss.WorkerLarge.Replicas, *replicasLargeStatefulset.Spec.Replicas)
+		replicasLargeStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), replicaStsConfig, v1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+	
+	// create or get replicas service
+	replicaSvcConfig := NewReplicasService(ReplicasSmall, og)
 	_, err = c.createOrGetService(og.Namespace, replicaSvcConfig)
 	if err != nil {
 		return err
 	}
 
-	shardingsphereSvcConfig := NewShardingsphereService(og)
-	shardingsphereSvc, err  := c.createOrGetService(og.Namespace, shardingsphereSvcConfig)
+	replicaSvcConfig = NewReplicasService(ReplicasMid, og)
+	_, err = c.createOrGetService(og.Namespace, replicaSvcConfig)
+	if err != nil {
+		return err
+	}
+
+	replicaSvcConfig = NewReplicasService(ReplicasLarge, og)
+	_, err = c.createOrGetService(og.Namespace, replicaSvcConfig)
 	if err != nil {
 		return err
 	}
 
 	// create sharding-sphere configmap at the time cluster is established
-	klog.Infof("Update shardingsphere config")
+	// or connect to shardingsphere to modify ips
 	if og.Status == nil {
-		_, err := c.createShardingsphereConfigmap(og, masterStatefulset, replicasStatefulset)
+		klog.Infof("Create shardingsphere configmap")
+		_, err := c.createShardingsphereConfigmap(og)
+		klog.Info("Boost master, replica-small, replica-mid, replica-large: ",
+		og.Status.MasterIPs, og.Status.ReplicasSmallIPs, og.Status.ReplicasMidIPs, og.Status.ReplicasLargeIPs)
+
 		if err != nil {
 			return err
 		}
-	} else {
-		err = c.UpdateShardingsphereReadwriteConfig(og, masterStatefulset, replicasStatefulset, shardingsphereSvc)
-		if err != nil {
-			klog.Error("Create or update shardingsphere read-write config: error: ", err)
-			return err
-		}
-	
 	}
+	// } else {
+	// 	ogOld := og.DeepCopy()
+	// 	c.UpdateStatusIPs(og)
+	// 	c.UpdateShardingsphereConfig(ogOld, og, shardingsphereSvc)
+	// }
 	
 	// create or get shardingsphere statefulset
 	var shardingsphereStsConfig *appsv1.StatefulSet = nil
@@ -448,7 +567,11 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// create or get shardingsphere servie
-
+	shardingsphereSvcConfig := NewShardingsphereService(og)
+	shardingsphereSvc, err  := c.createOrGetService(og.Namespace, shardingsphereSvcConfig)
+	if err != nil {
+		return err
+	}
 
 	// 2. check if all components are controlled by opengauss
 	// checked if statefulsets are controlled by this og resource
@@ -457,10 +580,18 @@ func (c *Controller) syncHandler(key string) error {
 		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
 		return fmt.Errorf(msg)
 	}
-	if !v1.IsControlledBy(replicasStatefulset, og) {
-		msg := fmt.Sprintf(MessageResourceExists, replicasStatefulset.Name)
+	if !v1.IsControlledBy(replicasSmallStatefulset, og) {
+		msg := fmt.Sprintf(MessageResourceExists, replicasSmallStatefulset.Name)
 		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
 		return fmt.Errorf(msg)
+	}
+	if !v1.IsControlledBy(replicasMidStatefulset, og) {
+		msg := fmt.Sprintf(MessageResourceExists, replicasMidStatefulset.Name)
+		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
+	}
+	if !v1.IsControlledBy(replicasLargeStatefulset, og) {
+		msg := fmt.Sprintf(MessageResourceExists, replicasLargeStatefulset.Name)
+		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)		
 	}
 	if !v1.IsControlledBy(shardingsphereSvc, og) {
 		msg := fmt.Sprintf(MessageResourceExists, shardingsphereSvc.Name)
@@ -471,34 +602,6 @@ func (c *Controller) syncHandler(key string) error {
 		msg := fmt.Sprintf(MessageResourceExists, shardingsphereStatefulset.Name)
 		c.recorder.Event(og, corev1.EventTypeWarning, ErrResourceExists, msg)
 		return fmt.Errorf(msg)
-	}
-
-	// 3. check if the status of all components satisfy(don't need to check status of service)
-	// checked if replicas number are correct
-	if *og.Spec.OpenGauss.Master.Replicas != (*masterStatefulset.Spec.Replicas) ||
-		*og.Spec.OpenGauss.Worker.Replicas != (*replicasStatefulset.Spec.Replicas) {
-		// update configmap
-		masterConfigMap, masterConfigMapRes := NewMasterConfigMap(og)
-		err = c.createOrUpdateDynamicConfigMap(og.Namespace, masterConfigMap, masterConfigMapRes)
-		if err != nil {
-			return err
-		}
-		replicaConfigMap, replicaConfigMapRes := NewReplicaConfigMap(og)
-		err = c.createOrUpdateDynamicConfigMap(og.Namespace, replicaConfigMap, replicaConfigMapRes)
-		if err != nil {
-			return err
-		}
-		// update statefulset
-		klog.V(4).Infof("OpenGauss '%s' specified master replicas: %d, master statefulset Replicas %d", name, *og.Spec.OpenGauss.Master.Replicas, *masterStatefulset.Spec.Replicas)
-		masterStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), NewMasterStatefulsets(og), v1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		klog.V(4).Infof("OpenGauss '%s' specified master replicas: %d, master statefulset Replicas %d", name, *og.Spec.OpenGauss.Worker.Replicas, *replicasStatefulset.Spec.Replicas)
-		replicasStatefulset, err = c.kubeClientset.AppsV1().StatefulSets(og.Namespace).Update(context.TODO(), NewReplicaStatefulsets(og), v1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
 	}
 
 	// update shardingsphere Image if needed
@@ -533,7 +636,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// finally update opengauss resource status
-	err = c.updateOpenGaussStatus(og, masterStatefulset, replicasStatefulset, shardingsphereStatefulset, shardingsphereSvc, pvc)
+	err = c.updateOpenGaussStatus(og, masterStatefulset, replicasSmallStatefulset, replicasMidStatefulset, replicasLargeStatefulset, shardingsphereStatefulset, shardingsphereSvc, pvc)
 	if err != nil {
 		return err
 	}
@@ -550,7 +653,9 @@ func (c *Controller) syncHandler(key string) error {
 func (c *Controller) updateOpenGaussStatus(
 	og *opengaussv1.OpenGauss,
 	masterStatefulset  		  *appsv1.StatefulSet,
-	replicasStatefulset       *appsv1.StatefulSet,
+	replicasSmallStatefulset  *appsv1.StatefulSet,
+	replicasMidStatefulset	  *appsv1.StatefulSet,
+	replicasLargeStatefulset  *appsv1.StatefulSet,
 	shardingsphereStatefulSet *appsv1.StatefulSet,
 	shardingsphereSvc 		  *corev1.Service,
 	pvc *corev1.PersistentVolumeClaim) error {
@@ -559,30 +664,29 @@ func (c *Controller) updateOpenGaussStatus(
 	if ogCopy.Status == nil {
 		ogCopy.Status = &opengaussv1.OpenGaussStatus{}
 	}
-	ogCopy.Status.MasterStatefulset = masterStatefulset.Name
-	ogCopy.Status.ReplicasStatefulset = replicasStatefulset.Name
+	// ogCopy.Status.MasterStatefulsetName = masterStatefulset.Name
+	// ogCopy.Status.ReplicasSmallStsName = replicasSmallStatefulset.Name
+	// ogCopy.Status.ReplicasMidStsName = replicasMidStatefulset.Name
+	// ogCopy.Status.ReplicasLargeStsName = replicasLargeStatefulset.Name
 	ogCopy.Status.ReadyMaster = (strconv.Itoa(int(masterStatefulset.Status.ReadyReplicas)))
-	ogCopy.Status.ReadyReplicas = (strconv.Itoa(int(replicasStatefulset.Status.ReadyReplicas)))
-
-	if shardingsphereStatefulSet != nil {
-		ogCopy.Status.ReadyShardingsphere = (strconv.Itoa(int(shardingsphereStatefulSet.Status.ReadyReplicas)))
-	}
+	ogCopy.Status.ReadyReplicasSmall = (strconv.Itoa(int(replicasSmallStatefulset.Status.ReadyReplicas)))
+	ogCopy.Status.ReadyReplicasMid = (strconv.Itoa(int(replicasMidStatefulset.Status.ReadyReplicas)))
+	ogCopy.Status.ReadyShardingsphere = (strconv.Itoa(int(shardingsphereStatefulSet.Status.ReadyReplicas)))
 	ogCopy.Status.PersistentVolumeClaimName = pvc.Name
+
 	if (masterStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.Master.Replicas &&
-		(replicasStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.Worker.Replicas {
+		(replicasSmallStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.WorkerSmall.Replicas &&
+		(replicasMidStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.WorkerMid.Replicas &&
+		(replicasLargeStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.WorkerLarge.Replicas{
 		ogCopy.Status.OpenGaussStatus = "READY"
 	}
 
-	// }
-	// if (!c.clusterList[og.Namespace+"/"+og.Name] || (og.Status != nil && (og.Status.ReadyReplicas != ogCopy.Status.ReadyReplicas || og.Status.ReadyMaster != ogCopy.Status.ReadyMaster))) && replicasStatefulset.Status.ReadyReplicas == *og.Spec.OpenGauss.Worker.Replicas {
-	// 	klog.Infof("Update mycat config: %s", og.Name)
-	// 	time.Sleep(SyncInterval)
-	// 	klog.Infof("Reload mycat: %s", og.Name)
-	// 	err = c.restartMycat(og)
-	// 	if err != nil {
-	// 		klog.Infof("Reload mycat error:%s", err)
-	// 	}
-	// }
+	c.UpdateStatusIPs(ogCopy)
+	if len(ogCopy.Status.MasterIPs) > 1 {
+		klog.Error("Don't support multi master")
+		return errors.NewServiceUnavailable("multi master")
+	}
+	c.UpdateShardingsphereConfig(og, ogCopy, shardingsphereSvc)
 	ogCopy, err = c.openGaussClientset.ControllerV1().OpenGausses(ogCopy.Namespace).UpdateStatus(context.TODO(), ogCopy, v1.UpdateOptions{})
 	if err != nil {
 		klog.Infoln("Failed to update opengauss status:", ogCopy.Name, " error:", err)
@@ -601,22 +705,22 @@ func ExecCmd(db *sql.DB, ctx context.Context, cmd string) error {
 	return nil
 }
 
-func (c *Controller) createShardingsphereConfigmap(og *opengaussv1.OpenGauss, masterSts *appsv1.StatefulSet, replicaSts *appsv1.StatefulSet) (*corev1.ConfigMap, error) {
-	c.UpdateStatusIPs(og, masterSts, replicaSts)
+func (c *Controller) createShardingsphereConfigmap(og *opengaussv1.OpenGauss) (*corev1.ConfigMap, error) {
+	c.UpdateStatusIPs(og)
 	sphereConfigMap := NewShardingSphereConfigMap(og)
 	var err error
-	if og.Spec.OpenGauss.Origin == nil {
-		sphereConfigMap, err = c.createOrGetConfigMap(og.Namespace, sphereConfigMap)
-		if err != nil {
-			return nil, err
-		}
+	sphereConfigMap, err = c.createOrGetConfigMap(og.Namespace, sphereConfigMap)
+	if err != nil {
+		return nil, err
 	}
+	// if og.Spec.OpenGauss.Origin == nil {
+	// }
 	return sphereConfigMap, nil
 }
 
-func (c *Controller) UpdateShardingsphereReadwriteConfig(og *opengaussv1.OpenGauss, masterSts *appsv1.StatefulSet, replicaSts *appsv1.StatefulSet, svc *corev1.Service) error {
-	i := 0
-	
+// There is bug in shardingsphere. 
+// We can't drop read-wrtie config and add a new one, we can only alter old one.
+func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, ogNew *opengaussv1.OpenGauss, svc *corev1.Service) error {
 	connStr := fmt.Sprintf("user=root dbname=postgres password=root host=%s port=5432 sslmode=disable", svc.Spec.ClusterIP)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -624,112 +728,146 @@ func (c *Controller) UpdateShardingsphereReadwriteConfig(og *opengaussv1.OpenGau
 	}
 	defer db.Close()
 
-	masterIPs := []string{}
-	for i := 0; i < int(*og.Spec.OpenGauss.Master.Replicas); i++ {
-		m_replicas_name := fmt.Sprintf("%v-%d", masterSts.Name, i)
-		m_replicas, _ := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), m_replicas_name, v1.GetOptions{})
-		if m_replicas != nil && m_replicas.Status.ContainerStatuses != nil {
-			masterIPs = append(masterIPs, m_replicas.Status.PodIP)
-		}
-	}
-	replicasIPs := []string{}
-	for i := 0; i < int(*og.Spec.OpenGauss.Worker.Replicas); i++ {
-		w_replicas_name := fmt.Sprintf("%v-%d", replicaSts.Name, i)
-		w_replicas, _ := c.kubeClientset.CoreV1().Pods(og.Namespace).Get(context.TODO(), w_replicas_name, v1.GetOptions{})
-		if w_replicas != nil && w_replicas.Status.ContainerStatuses != nil {
-			replicasIPs = append(replicasIPs, w_replicas.Status.PodIP)
-		}
-	}
-	klog.Infof("masterIPs %v, replicasIPs %v", masterIPs, replicasIPs)
-	klog.Infof("og masterIPs %v, replicasIPs %v", og.Status.MasterIPs, og.Status.ReplicasIPs)
-
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
 
-	// update new, rebooted Master's IP
-	if len(og.Status.MasterIPs) == 1 && len(masterIPs) == 1 && og.Status.MasterIPs[0] != masterIPs[0] {
-		cmd := fmt.Sprintf("alter resource primary_ds (HOST=%s, PORT=5432, DB=postgres, USER=gaussdb, PASSWORD=Enmo@123);", masterIPs[0])
-		err := ExecCmd(db, ctx, cmd)
+	// need to change shardingsphere config
+	if util.IPsChange(ogOld, ogNew) {
+		klog.Info("IPs change")
+		klog.Info("Last time master, replica-small, replica-mid, replica-large: ", 
+				ogOld.Status.MasterIPs, ogOld.Status.ReplicasSmallIPs, ogOld.Status.ReplicasMidIPs, ogOld.Status.ReplicasLargeIPs)
+		klog.Info("This time master, replica-small, replica-mid, replica-large: ",
+				ogNew.Status.MasterIPs, ogNew.Status.ReplicasSmallIPs, ogNew.Status.ReplicasMidIPs, ogNew.Status.ReplicasLargeIPs)
+		// delete old readwrite rule
+		klog.Info("Delete old read-write rule")
+		cmd := fmt.Sprintf("ALTER READWRITE_SPLITTING RULE %s (WRITE_RESOURCE=%s,READ_RESOURCES(%s),TYPE(NAME=random));", 
+				readWriteName, util.Master(ogOld).DataResourceName(0), util.Master(ogOld).DataResourceName(0))
+		err := ExecCmd(db, ctx, cmd) // ignore error
 		if err != nil {
 			return err
-		}
-	}
+		}	
 
-	// update rebooted, deleted, new Replica's IP
-	for ; i < len(og.Status.ReplicasIPs) && i < len(replicasIPs); i++ {
-		if (og.Status.ReplicasIPs[i] != replicasIPs[i]) {
-			cmd := fmt.Sprintf("alter resource primary_ds_%d (HOST=%s, PORT=5432, DB=postgres, USER=gaussdb, PASSWORD=Enmo@123);", i, replicasIPs[i])
+		writeDsName := ""
+		readDsName := ""
+		props := ""
+		// try to alter write data resources
+		if util.MasterIPsChange(ogOld, ogNew) {
+			klog.Info("Alter write data resources")
+			formatter := util.Master(ogOld)
+			// for i := 0; i < len(ogOld.Status.MasterIPs); i++ {
+			// 	cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
+			// 	err := ExecCmd(db, ctx, cmd)
+			// 	if err != nil {
+			// 		return err
+			// 	}	
+			// }
+			cmd := fmt.Sprintf("Alter RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+					formatter.DataResourceName(0), ogNew.Status.MasterIPs[0], dbPort, dbName, dbUser, dbPassword)
 			err := ExecCmd(db, ctx, cmd)
 			if err != nil {
 				return err
+			}	
+			writeDsName += formatter.DataResourceName(0) + ","
+		} else {
+			formatter := util.Master(ogOld)
+			writeDsName = formatter.DataResourceName(0) + ","
+		}
+		// try to alter read data resources
+		if util.ReplicaSmallIPsChange(ogOld, ogNew) {
+			klog.Info("Alter read-small data resources")
+			formatter := util.ReplicaSmall(ogOld)
+			for i := 0; i < len(ogOld.Status.ReplicasSmallIPs); i++ {
+				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
+				err := ExecCmd(db, ctx, cmd)
+				if err != nil {
+					return err
+				}	
+			}
+			for i := 0; i < len(ogNew.Status.ReplicasSmallIPs); i++ {
+				cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+						formatter.DataResourceName(i), ogNew.Status.ReplicasSmallIPs[i], dbPort, dbName, dbUser, dbPassword)
+				err := ExecCmd(db, ctx, cmd)
+				if err != nil {
+					return err
+				}	
+				readDsName += formatter.DataResourceName(i) + ","
+				props += formatter.DataResourceName(i) + "=" + smallWeight + ","
+			}
+		} else {
+			formatter := util.ReplicaSmall(ogOld)
+			for i := 0; i < len(ogOld.Status.ReplicasSmallIPs); i++ {
+				readDsName += formatter.DataResourceName(i) + ","
+				props += formatter.DataResourceName(i) + "=" + smallWeight + ","
 			}
 		}
-	}
-	if i < len(og.Status.ReplicasIPs) {
-		// Delete deleted resources
-		cmd := "ALTER READWRITE_SPLITTING RULE readwrite_ds(WRITE_RESOURCE=primary_ds, READ_RESOURCES("
-		for j := 0; j < i; j++ {
-			cmd += "replica_ds_" + strconv.Itoa(j) + ","
+		if util.ReplicaMidIPsChange(ogOld, ogNew) {
+			klog.Info("Alter read-mid data resources")
+			formatter := util.ReplicaMid(ogOld)
+			for i := 0; i < len(ogOld.Status.ReplicasMidIPs); i++ {
+				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
+				err := ExecCmd(db, ctx, cmd)
+				if err != nil {
+					return err
+				}	
+			}
+			for i := 0; i < len(ogNew.Status.ReplicasMidIPs); i++ {
+				cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+						formatter.DataResourceName(i), ogNew.Status.ReplicasMidIPs[i], dbPort, dbName, dbUser, dbPassword)
+				err := ExecCmd(db, ctx, cmd)
+				if err != nil {
+					return err
+				}	
+				readDsName += formatter.DataResourceName(i) + ","
+				props += formatter.DataResourceName(i) + "=" + midWeight + ","
+			}
+		} else {
+			formatter := util.ReplicaMid(ogOld)
+			for i := 0; i < len(ogOld.Status.ReplicasMidIPs); i++ {
+				readDsName += formatter.DataResourceName(i) + ","
+				props += formatter.DataResourceName(i) + "=" + midWeight + ","
+			}
 		}
-		cmd = cmd[:len(cmd)-1] + "));"
-		klog.V(4).Info("Alter read-write rule before delete resources")
-		ExecCmd(db, ctx, cmd)
+		if util.ReplicaLargeIPsChange(ogOld, ogNew) {
+			klog.Info("Alter read-large data resources")
+			formatter := util.ReplicaLarge(ogOld)
+			for i := 0; i < len(ogOld.Status.ReplicasLargeIPs); i++ {
+				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
+				err := ExecCmd(db, ctx, cmd)
+				if err != nil {
+					return err
+				}	
+			}
+			for i := 0; i < len(ogNew.Status.ReplicasLargeIPs); i++ {
+				cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+						formatter.DataResourceName(i), ogNew.Status.ReplicasLargeIPs[i], dbPort, dbName, dbUser, dbPassword)
+				err := ExecCmd(db, ctx, cmd)
+				if err != nil {
+					return err
+				}
+				readDsName += formatter.DataResourceName(i) + ","
+				props += formatter.DataResourceName(i) + "=" + largeWeight + ","
+			}
+		} else {
+			formatter := util.ReplicaLarge(ogOld)
+			for i := 0; i < len(ogOld.Status.ReplicasLargeIPs); i++ {
+				readDsName += formatter.DataResourceName(i) + ","
+				props += formatter.DataResourceName(i) + "=" + largeWeight + ","
+			}
+		}
 
-		cmd = "drop resource "
-		for j := i; j < len(og.Status.ReplicasIPs); j++ {
-			cmd += "replica_ds_" + strconv.Itoa(j) + ","
-		}
-		cmd = cmd[:len(cmd)-1] + ";"
-		klog.V(4).Info("Delete Resource")
+		// strip the last `,`
+		writeDsName = writeDsName[:len(writeDsName)-1]
+		readDsName = readDsName[:len(readDsName)-1]
+		props = props[:len(props)-1]
+		// create new read-write rule
+		cmd = fmt.Sprintf("ALTER READWRITE_SPLITTING RULE %s (WRITE_RESOURCE=%s, READ_RESOURCES(%s), TYPE(NAME=weight,PROPERTIES(%s)));", 
+				readWriteName, writeDsName, readDsName, props)
 		err = ExecCmd(db, ctx, cmd)
 		if err != nil {
 			return err
 		}
-	} else if i < len(replicasIPs) { // Add new Replica's IP
-		cmd := "add resource "
-		for j := i; j < len(replicasIPs); j++ {
-			cmd += "replica_ds_" + strconv.Itoa(j) + fmt.Sprintf("(HOST=%s, PORT=5432, DB=postgres, USER=gaussdb, PASSWORD=Enmo@123),", replicasIPs[j])
-		}
-		cmd = cmd[:len(cmd)-1] + ";"
-		klog.V(4).Info("Add Resource")
-		err := ExecCmd(db, ctx, cmd)
-		if err != nil {
-			return err
-		}
-
-		cmd = "ALTER READWRITE_SPLITTING RULE readwrite_ds(WRITE_RESOURCE=primary_ds, READ_RESOURCES("
-		for j := 0; j < len(replicasIPs); j++ {
-			cmd += "replica_ds_" + strconv.Itoa(j) + ","
-		}
-		cmd = cmd[:len(cmd)-1] + "));"
-		err = ExecCmd(db, ctx, cmd)
-		if err != nil {
-			return err
-		}			
 	}
-	
-	// update read-write splitting rule
-	// oldlen := len(og.Status.MasterIPs) + len(og.Status.ReplicasIPs)
-	// newlen := len(masterIPs) + len(replicasIPs)
-	// if  oldlen != newlen {
-	// 	cmd := "READWRITE_SPLITTING RULE readwrite_ds(WRITE_RESOURCE=primary_ds, READ_RESOURCES("
-	// 	for i := 0; i < newlen - 1; i++ {
-	// 		cmd += "replica_ds_" + strconv.Itoa(i) + ","
-	// 	}
-	// 	cmd = cmd[:len(cmd)-1] + "));"
-	// 	if oldlen == 0 || oldlen > newlen{
-	// 		cmd = "ADD " + cmd
-	// 	} else {
-	// 		cmd = "ALTER " + cmd
-	// 	}
-	// 	err := ExecCmd(db, ctx, cmd)
-	// 	if err != nil {
-	// 		return err
-	// 	}		
-	// }
 
-	og.Status.MasterIPs = masterIPs
-	og.Status.ReplicasIPs = replicasIPs
 	return nil
 }
 
@@ -918,6 +1056,7 @@ func (c *Controller) enqueueOpenGauss(obj interface{}) {
 		utilruntime.HandleError(err)
 		return
 	}
+	
 	c.workqueue.Add(key)
 }
 

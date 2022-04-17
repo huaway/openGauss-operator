@@ -4,3 +4,6 @@ rules:
       - root@%:root
     provider:
       type: ALL_PRIVILEGES_PERMITTED
+props:
+  proxy-backend-executor-suitable: OLTP
+  max-connetion-size-per-query: 10

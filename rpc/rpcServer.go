@@ -41,7 +41,9 @@ func (s *openGaussRpcServer) Scale(ctx context.Context, req *pb.ScaleRequest) (*
 		return response, errors.New("error getting opengauss object")
 	}
 	og.Spec.OpenGauss.Master.Replicas = util.Int32Ptr(req.MasterReplication)
-	og.Spec.OpenGauss.Worker.Replicas = util.Int32Ptr(req.WorkerReplication)
+	og.Spec.OpenGauss.WorkerSmall.Replicas = util.Int32Ptr(req.WorkerSmallReplication)
+	og.Spec.OpenGauss.WorkerMid.Replicas = util.Int32Ptr(req.WorkerMidReplication)
+	og.Spec.OpenGauss.WorkerLarge.Replicas = util.Int32Ptr(req.WorkerLargeReplication)
 	_, err = s.client.ControllerV1().OpenGausses(namespace).Update(ctx, og, v1.UpdateOptions{})
 	if err != nil {
 		return response, errors.New("error during updata opengauss spec")
@@ -63,7 +65,9 @@ func (s *openGaussRpcServer) Get(ctx context.Context, req *pb.GetRequest) (*pb.G
 		return response, errors.New("error getting opengauss object")
 	}
 	response.MasterReplication = (*og.Spec.OpenGauss.Master.Replicas)
-	response.WorkerReplication = (*og.Spec.OpenGauss.Worker.Replicas)
+	response.WorkerSmallReplication = (*og.Spec.OpenGauss.WorkerSmall.Replicas)
+	response.WorkerMidReplication = (*og.Spec.OpenGauss.WorkerMid.Replicas)
+	response.WorkerLargeReplication = (*og.Spec.OpenGauss.WorkerLarge.Replicas)
 	response.Success = true
 	return response, nil
 }

@@ -29,7 +29,9 @@ type OpenGaussSpec struct {
 // Define OpenGauss's needs for master and replicas
 type OpenGaussClusterConfiguration struct {
 	Master 			*OpenGaussStatefulSet   		`json:"master"` // Master Configuration
-	Worker 			*OpenGaussStatefulSet   		`json:"worker"` // Replicas Configuration
+	WorkerSmall 	*OpenGaussStatefulSet   		`json:"workerSmall"` // Small replicas Configuration
+	WorkerMid		*OpenGaussStatefulSet			`json:"workerMid"` // Mid replicas Configration
+	WorkerLarge		*OpenGaussStatefulSet			`json:"workerLarge"` // Large replicas Configration
 	Shardingsphere  *ShardingsphereStatefulSet      `json:"shardingsphere"`  // Shardingsphere Configuration
 	Origin 			*OriginOpenGaussCluster 		`json:"origin"` // Multi-Master shared info
 }
@@ -55,13 +57,15 @@ type ShardingsphereStatefulSet struct {
 type OpenGaussStatus struct {
 	OpenGaussStatus           string   `json:"opengaussStatus"`         // OpenGauss if ready or not
 	ReadyMaster               string   `json:"readyMaster,omitempty"`   // Ready Master number
-	ReadyReplicas    	      string   `json:"readyReplicas,omitempty"` // Ready Replicas number
-	ReadyShardingsphere       string   `json:"readyMycat,omitempty"`
-	MasterStatefulset         string   `json:"masterStatefulset,omitempty"`         // name of master statefulset
-	ReplicasStatefulset       string   `json:"replicasStatefulset,omitempty"`       // name of replicas statefulset
-	PersistentVolumeClaimName string   `json:"persistentVolumeClaimName,omitempty"` // name of pvc
+	ReadyReplicasSmall    	  string   `json:"readyReplicasSmall,omitempty"` // Number of Ready Replicas with minimum configration
+	ReadyReplicasMid		  string   `json:"readyReplicasMid,omitempty"` // Number of Ready Replicas with medium configration
+	ReadyReplicasLarge		  string   `json:"readyReplicasLarge,omitempty"` // Number of Ready Replicas with maximum configration
 	MasterIPs                 []string `json:"masterIPs,omitempty"`                 // master ips
-	ReplicasIPs               []string `json:"replicasIPs,omitempty"`               // replicas ips
+	ReplicasSmallIPs		  []string `json:"replicasSmallIPs,omitempty"`
+	ReplicasMidIPs		      []string `json:"replicasMidIPs,omitempty"`
+	ReplicasLargeIPs		  []string `json:"replicasLargeIPs,omitempty"`
+	ReadyShardingsphere       string   `json:"readyShardingsphere,omitempty"`
+	PersistentVolumeClaimName string   `json:"persistentVolumeClaimName,omitempty"` // name of pvc
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

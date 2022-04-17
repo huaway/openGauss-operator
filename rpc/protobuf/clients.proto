@@ -11,7 +11,9 @@ service OpenGaussController {
 message ScaleRequest {
   string openGaussObjectKey = 1;  // namespace/name, e.g.: "default/test-openGauss"
   int32 masterReplication = 2;
-  int32 workerReplication = 3;
+  int32 workerSmallReplication = 3;
+  int32 workerMidReplication = 4;
+  int32 workerLargeReplication = 5;
 }
 
 message ScaleResponse {
@@ -25,5 +27,7 @@ message GetRequest {
 message GetResponse {
   bool success = 1;
   int32 masterReplication = 2;
-  int32 workerReplication = 3;
+  int32 workerSmallReplication = 3;
+  int32 workerMidReplication = 4;
+  int32 workerLargeReplication = 5;
 }

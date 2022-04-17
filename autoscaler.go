@@ -256,7 +256,7 @@ func (c *AutoScalerController) createOrUpdateAutoScaler(og *opengaussv1.OpenGaus
 		}
 	}
 	if autoscaler.Spec.Worker != nil {
-		workerHpaConfig := NewHorizontalPodAutoscaler(og, autoscaler, Replicas)
+		workerHpaConfig := NewHorizontalPodAutoscaler(og, autoscaler, ReplicasSmall)
 		_, err := c.kubeClientset.AutoscalingV2beta2().HorizontalPodAutoscalers(og.Namespace).Get(context.TODO(), workerHpaConfig.Name, v1.GetOptions{})
 		if err != nil {
 			// not exist, try to create

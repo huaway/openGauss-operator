@@ -70,8 +70,18 @@ func (in *OpenGaussClusterConfiguration) DeepCopyInto(out *OpenGaussClusterConfi
 		*out = new(OpenGaussStatefulSet)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Worker != nil {
-		in, out := &in.Worker, &out.Worker
+	if in.WorkerSmall != nil {
+		in, out := &in.WorkerSmall, &out.WorkerSmall
+		*out = new(OpenGaussStatefulSet)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.WorkerMid != nil {
+		in, out := &in.WorkerMid, &out.WorkerMid
+		*out = new(OpenGaussStatefulSet)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.WorkerLarge != nil {
+		in, out := &in.WorkerLarge, &out.WorkerLarge
 		*out = new(OpenGaussStatefulSet)
 		(*in).DeepCopyInto(*out)
 	}
@@ -191,8 +201,18 @@ func (in *OpenGaussStatus) DeepCopyInto(out *OpenGaussStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.ReplicasIPs != nil {
-		in, out := &in.ReplicasIPs, &out.ReplicasIPs
+	if in.ReplicasSmallIPs != nil {
+		in, out := &in.ReplicasSmallIPs, &out.ReplicasSmallIPs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ReplicasMidIPs != nil {
+		in, out := &in.ReplicasMidIPs, &out.ReplicasMidIPs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ReplicasLargeIPs != nil {
+		in, out := &in.ReplicasLargeIPs, &out.ReplicasLargeIPs
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

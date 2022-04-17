@@ -29,8 +29,8 @@ func NewHorizontalPodAutoscaler(og *v1.OpenGauss, autoscaler *scalerv1.AutoScale
 		formatter = util.Master(og)
 		hpa.Spec = *autoscaler.Spec.Master.Spec
 	} else {
-		formatter = util.Replica(og)
-		hpa.Spec = *autoscaler.Spec.Worker.Spec
+		// formatter = util.Replica(og)
+		// hpa.Spec = *autoscaler.Spec.Worker.Spec
 	}
 	hpa.Name = formatter.StatefulSetName()
 	return hpa

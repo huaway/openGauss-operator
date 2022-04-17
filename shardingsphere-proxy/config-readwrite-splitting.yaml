@@ -22,7 +22,7 @@ dataSources:
 rules:
 - !READWRITE_SPLITTING
   dataSources:
-    readwrite_ds:
+    readwrite_rule:
       type: Static
       props:
         write-data-source-name: primary_ds

@@ -11,7 +11,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func main() {
+func connect() {
 	connStr := "user=root dbname=postgres password=root host=10.111.9.18 port=5432 sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
