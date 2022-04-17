@@ -60,9 +60,9 @@ func main() {
 	// 		}
 	// 	}
 	// }
-	vmpool.ScaleUp(VmLarge)
-	time.Sleep(10*time.Second)
-	vmpool.ScaleDown(VmMid)
+	// vmpool.ScaleUp(VmMid)
+	// time.Sleep(20*time.Second)
+	vmpool.ScaleDown(VmLarge)
 }
 
 // Return the value when only one kv pair

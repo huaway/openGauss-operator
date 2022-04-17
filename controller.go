@@ -699,7 +699,7 @@ func ExecCmd(db *sql.DB, ctx context.Context, cmd string) error {
 		cmd,
 	)
 	if err != nil {
-		klog.Error(fmt.Sprintf("Error when executing cmd:\n %s", cmd))
+		klog.Error(fmt.Sprintf("Error: %s when executing cmd:\n %s", err, cmd))
 		return err
 	}		
 	return nil
@@ -838,11 +838,15 @@ func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, og
 				}	
 			}
 			for i := 0; i < len(ogNew.Status.ReplicasLargeIPs); i++ {
-				cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
-						formatter.DataResourceName(i), ogNew.Status.ReplicasLargeIPs[i], dbPort, dbName, dbUser, dbPassword)
-				err := ExecCmd(db, ctx, cmd)
-				if err != nil {
-					return err
+				for {
+					cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+							formatter.DataResourceName(i), ogNew.Status.ReplicasLargeIPs[i], dbPort, dbName, dbUser, dbPassword)
+					err := ExecCmd(db, ctx, cmd)
+					if err != nil {
+						time.Sleep(500 * time.Millisecond)
+						continue
+					}
+					break
 				}
 				readDsName += formatter.DataResourceName(i) + ","
 				props += formatter.DataResourceName(i) + "=" + largeWeight + ","
