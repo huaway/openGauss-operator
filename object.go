@@ -747,7 +747,7 @@ func loadConfigMapTemplate(id Identity) map[string]interface{} {
 	var err error
 	switch id {
 	case Master:
-		fileBytes, err = ioutil.ReadFile("configs/config.yaml")
+		fileBytes, err = ioutil.ReadFile("configs/config-master.yaml")
 	case ReplicasSmall:
 		fileBytes, err = ioutil.ReadFile("configs/config-small.yaml")
 	case ReplicasMid:

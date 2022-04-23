@@ -132,3 +132,4 @@ func (formatter *openGaussClusterFormatter) ShardingsphereReadwriteConfig() (ret
 	}
 	return ""
 }
+

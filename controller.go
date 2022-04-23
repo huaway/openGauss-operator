@@ -308,7 +308,7 @@ func (c *Controller) UpdateStatusIPs(og *opengaussv1.OpenGauss) error {
 			}
 			if master != nil && master.Status.ContainerStatuses != nil {
 				if len(master.Status.PodIP) == 0 { // Wait until master statefulset is ready
-					time.Sleep(time.Millisecond * 500)
+					time.Sleep(time.Second * 2)
 					continue
 				}
 				masterIPs = append(masterIPs, master.Status.PodIP)
@@ -478,6 +478,16 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
+	// create or get shardingsphere servie
+	shardingsphereSvcConfig := NewShardingsphereService(og)
+	shardingsphereSvc, err  := c.createOrGetService(og.Namespace, shardingsphereSvcConfig)
+	if err != nil {
+		return err
+	}
+	if og.Status != nil {
+		c.PrepareShardingsphereConfig(og, shardingsphereSvc)
+	}	
+
 	// create or update replica statefulset
 	var replicaStsConfig *appsv1.StatefulSet = nil
 	var replicasSmallStatefulset *appsv1.StatefulSet = nil
@@ -562,13 +572,6 @@ func (c *Controller) syncHandler(key string) error {
 	var shardingsphereStatefulset *appsv1.StatefulSet = nil
 	shardingsphereStsConfig = NewShardingSphereStatefulset(og)
 	shardingsphereStatefulset, err = c.createOrGetStatefulset(og.Namespace, shardingsphereStsConfig)
-	if err != nil {
-		return err
-	}
-
-	// create or get shardingsphere servie
-	shardingsphereSvcConfig := NewShardingsphereService(og)
-	shardingsphereSvc, err  := c.createOrGetService(og.Namespace, shardingsphereSvcConfig)
 	if err != nil {
 		return err
 	}
@@ -668,10 +671,11 @@ func (c *Controller) updateOpenGaussStatus(
 	// ogCopy.Status.ReplicasSmallStsName = replicasSmallStatefulset.Name
 	// ogCopy.Status.ReplicasMidStsName = replicasMidStatefulset.Name
 	// ogCopy.Status.ReplicasLargeStsName = replicasLargeStatefulset.Name
-	ogCopy.Status.ReadyMaster = (strconv.Itoa(int(masterStatefulset.Status.ReadyReplicas)))
-	ogCopy.Status.ReadyReplicasSmall = (strconv.Itoa(int(replicasSmallStatefulset.Status.ReadyReplicas)))
-	ogCopy.Status.ReadyReplicasMid = (strconv.Itoa(int(replicasMidStatefulset.Status.ReadyReplicas)))
-	ogCopy.Status.ReadyShardingsphere = (strconv.Itoa(int(shardingsphereStatefulSet.Status.ReadyReplicas)))
+	ogCopy.Status.ReadyMaster = strconv.Itoa(int(masterStatefulset.Status.ReadyReplicas)) 
+	ogCopy.Status.ReadyReplicasSmall = strconv.Itoa(int(replicasSmallStatefulset.Status.ReadyReplicas))
+	ogCopy.Status.ReadyReplicasMid = strconv.Itoa(int(replicasMidStatefulset.Status.ReadyReplicas)) 
+	ogCopy.Status.ReadyReplicasLarge = strconv.Itoa(int(replicasLargeStatefulset.Status.ReadyReplicas))
+	ogCopy.Status.ReadyShardingsphere = strconv.Itoa(int(shardingsphereStatefulSet.Status.ReadyReplicas)) 
 	ogCopy.Status.PersistentVolumeClaimName = pvc.Name
 
 	if (masterStatefulset.Status.ReadyReplicas) == *ogCopy.Spec.OpenGauss.Master.Replicas &&
@@ -695,13 +699,22 @@ func (c *Controller) updateOpenGaussStatus(
 }
 
 func ExecCmd(db *sql.DB, ctx context.Context, cmd string) error {
-	_, err := db.ExecContext(ctx,
-		cmd,
-	)
-	if err != nil {
-		klog.Error(fmt.Sprintf("Error: %s when executing cmd:\n %s", err, cmd))
-		return err
-	}		
+	cnt := 0
+	for {
+		_, err := db.ExecContext(ctx,
+			cmd,
+		)
+		if err != nil {
+			klog.Error(fmt.Sprintf("Error: %s when executing cmd:\n %s", err, cmd))
+			time.Sleep(500 * time.Millisecond)
+			if cnt < 5 {
+				cnt++
+				continue
+			}
+			return err
+		}
+		break		
+	}
 	return nil
 }
 
@@ -718,18 +731,61 @@ func (c *Controller) createShardingsphereConfigmap(og *opengaussv1.OpenGauss) (*
 	return sphereConfigMap, nil
 }
 
+func stringToInt32(str string) int32 {
+	ans, err := strconv.ParseInt(str, 10, 32)
+	if err != nil {
+		klog.Error(err)
+	}
+	return int32(ans)
+}
+// In order not to interrupt connection between client and shardingsphere, we must update read-wrtie config
+// before updating statefulet.
+// Only support delete one type of replica one time
+func (c *Controller) PrepareShardingsphereConfig(og *opengaussv1.OpenGauss, svc *corev1.Service) error {
+	// if *og.Spec.OpenGauss.WorkerSmall.Replicas < stringToInt32(og.Status.ReadyReplicasSmall) {
+	// 	klog.Info("Delete replicas-small, change ")
+	// }
+	change :=  *og.Spec.OpenGauss.WorkerSmall.Replicas != stringToInt32(og.Status.ReadyReplicasSmall)
+	change = change || *og.Spec.OpenGauss.WorkerMid.Replicas != stringToInt32(og.Status.ReadyReplicasMid)
+	change = change || *og.Spec.OpenGauss.WorkerLarge.Replicas != stringToInt32(og.Status.ReadyReplicasLarge)
+	if change {
+		klog.Info("Cluster pods changes, alter old read-write rule with transient rule")
+		db, err := util.NewDbConnect(svc.Spec.ClusterIP)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+	
+		// delete old readwrite rule
+		cmd := fmt.Sprintf("ALTER READWRITE_SPLITTING RULE %s (WRITE_RESOURCE=%s,READ_RESOURCES(%s),TYPE(NAME=random));", 
+		readWriteName, util.Master(og).DataResourceName(0), util.Master(og).DataResourceName(0))
+		err = db.ExecCmd(cmd) 
+		if err != nil {
+			return err
+		}	
+	}
+
+	return nil
+}
+
 // There is bug in shardingsphere. 
 // We can't drop read-wrtie config and add a new one, we can only alter old one.
 func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, ogNew *opengaussv1.OpenGauss, svc *corev1.Service) error {
-	connStr := fmt.Sprintf("user=root dbname=postgres password=root host=%s port=5432 sslmode=disable", svc.Spec.ClusterIP)
-	db, err := sql.Open("postgres", connStr)
+	// connStr := fmt.Sprintf("user=root dbname=postgres password=root host=%s port=5432 sslmode=disable", svc.Spec.ClusterIP)
+	// db, err := sql.Open("postgres", connStr)
+	// if err != nil {
+	// 	return err
+	// }
+	// defer db.Close()
+
+	// ctx, stop := context.WithCancel(context.Background())
+	// defer stop()
+
+	db, err := util.NewDbConnect(svc.Spec.ClusterIP)
 	if err != nil {
 		return err
 	}
 	defer db.Close()
-
-	ctx, stop := context.WithCancel(context.Background())
-	defer stop()
 
 	// need to change shardingsphere config
 	if util.IPsChange(ogOld, ogNew) {
@@ -738,14 +794,6 @@ func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, og
 				ogOld.Status.MasterIPs, ogOld.Status.ReplicasSmallIPs, ogOld.Status.ReplicasMidIPs, ogOld.Status.ReplicasLargeIPs)
 		klog.Info("This time master, replica-small, replica-mid, replica-large: ",
 				ogNew.Status.MasterIPs, ogNew.Status.ReplicasSmallIPs, ogNew.Status.ReplicasMidIPs, ogNew.Status.ReplicasLargeIPs)
-		// delete old readwrite rule
-		klog.Info("Delete old read-write rule")
-		cmd := fmt.Sprintf("ALTER READWRITE_SPLITTING RULE %s (WRITE_RESOURCE=%s,READ_RESOURCES(%s),TYPE(NAME=random));", 
-				readWriteName, util.Master(ogOld).DataResourceName(0), util.Master(ogOld).DataResourceName(0))
-		err := ExecCmd(db, ctx, cmd) // ignore error
-		if err != nil {
-			return err
-		}	
 
 		writeDsName := ""
 		readDsName := ""
@@ -754,16 +802,9 @@ func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, og
 		if util.MasterIPsChange(ogOld, ogNew) {
 			klog.Info("Alter write data resources")
 			formatter := util.Master(ogOld)
-			// for i := 0; i < len(ogOld.Status.MasterIPs); i++ {
-			// 	cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
-			// 	err := ExecCmd(db, ctx, cmd)
-			// 	if err != nil {
-			// 		return err
-			// 	}	
-			// }
 			cmd := fmt.Sprintf("Alter RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
 					formatter.DataResourceName(0), ogNew.Status.MasterIPs[0], dbPort, dbName, dbUser, dbPassword)
-			err := ExecCmd(db, ctx, cmd)
+			err := db.ExecCmd(cmd)
 			if err != nil {
 				return err
 			}	
@@ -772,26 +813,41 @@ func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, og
 			formatter := util.Master(ogOld)
 			writeDsName = formatter.DataResourceName(0) + ","
 		}
+
 		// try to alter read data resources
+		replicaSmallId := -1 // the id of read source expected to be deleted
+		replicaMidId   := -1
+		replicaLargeId := -1
 		if util.ReplicaSmallIPsChange(ogOld, ogNew) {
 			klog.Info("Alter read-small data resources")
+			id := 0
+			oldIps := ogOld.Status.ReplicasSmallIPs
+			newIps := ogNew.Status.ReplicasSmallIPs
 			formatter := util.ReplicaSmall(ogOld)
-			for i := 0; i < len(ogOld.Status.ReplicasSmallIPs); i++ {
-				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
-				err := ExecCmd(db, ctx, cmd)
-				if err != nil {
-					return err
-				}	
+			for ; id < len(oldIps) && id < len(newIps); id++ {
+				if oldIps[id] != newIps[id] {
+					cmd := fmt.Sprintf("Alter RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+					formatter.DataResourceName(id), ogNew.Status.ReplicasSmallIPs[id], dbPort, dbName, dbUser, dbPassword)
+					err := db.ExecCmd(cmd)
+					if err != nil {
+						return err
+					}	
+				}
+				readDsName += formatter.DataResourceName(id) + ","
+				props += formatter.DataResourceName(id) + "=" + smallWeight + ","	
 			}
-			for i := 0; i < len(ogNew.Status.ReplicasSmallIPs); i++ {
+			if id < len(oldIps) {
+				replicaSmallId = id
+			}
+			for ; id < len(newIps); id++ {
 				cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
-						formatter.DataResourceName(i), ogNew.Status.ReplicasSmallIPs[i], dbPort, dbName, dbUser, dbPassword)
-				err := ExecCmd(db, ctx, cmd)
+						formatter.DataResourceName(id), ogNew.Status.ReplicasSmallIPs[id], dbPort, dbName, dbUser, dbPassword)
+				err := db.ExecCmd(cmd)
 				if err != nil {
 					return err
 				}	
-				readDsName += formatter.DataResourceName(i) + ","
-				props += formatter.DataResourceName(i) + "=" + smallWeight + ","
+				readDsName += formatter.DataResourceName(id) + ","
+				props += formatter.DataResourceName(id) + "=" + smallWeight + ","
 			}
 		} else {
 			formatter := util.ReplicaSmall(ogOld)
@@ -802,23 +858,36 @@ func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, og
 		}
 		if util.ReplicaMidIPsChange(ogOld, ogNew) {
 			klog.Info("Alter read-mid data resources")
+			id := 0
+			oldIps := ogOld.Status.ReplicasMidIPs
+			newIps := ogNew.Status.ReplicasMidIPs
 			formatter := util.ReplicaMid(ogOld)
-			for i := 0; i < len(ogOld.Status.ReplicasMidIPs); i++ {
-				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
-				err := ExecCmd(db, ctx, cmd)
-				if err != nil {
-					return err
-				}	
+			for ; id < len(oldIps) && id < len(newIps); id++ {
+				klog.Info("Alter changed read source ", formatter.DataResourceName(id))
+				if oldIps[id] != newIps[id] {
+					cmd := fmt.Sprintf("Alter RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+					formatter.DataResourceName(id), ogNew.Status.ReplicasMidIPs[id], dbPort, dbName, dbUser, dbPassword)
+					err := db.ExecCmd(cmd)
+					if err != nil {
+						return err
+					}	
+				}
+				readDsName += formatter.DataResourceName(id) + ","
+				props += formatter.DataResourceName(id) + "=" + midWeight + ","	
 			}
-			for i := 0; i < len(ogNew.Status.ReplicasMidIPs); i++ {
+			if id < len(oldIps) {
+				replicaMidId = id
+			}
+			for ; id < len(newIps); id++ {
+				klog.Info("Add new read source ", formatter.DataResourceName(id))
 				cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
-						formatter.DataResourceName(i), ogNew.Status.ReplicasMidIPs[i], dbPort, dbName, dbUser, dbPassword)
-				err := ExecCmd(db, ctx, cmd)
+						formatter.DataResourceName(id), ogNew.Status.ReplicasMidIPs[id], dbPort, dbName, dbUser, dbPassword)
+				err := db.ExecCmd(cmd)
 				if err != nil {
 					return err
 				}	
-				readDsName += formatter.DataResourceName(i) + ","
-				props += formatter.DataResourceName(i) + "=" + midWeight + ","
+				readDsName += formatter.DataResourceName(id) + ","
+				props += formatter.DataResourceName(id) + "=" + midWeight + ","
 			}
 		} else {
 			formatter := util.ReplicaMid(ogOld)
@@ -829,27 +898,34 @@ func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, og
 		}
 		if util.ReplicaLargeIPsChange(ogOld, ogNew) {
 			klog.Info("Alter read-large data resources")
+			id := 0
+			oldIps := ogOld.Status.ReplicasLargeIPs
+			newIps := ogNew.Status.ReplicasLargeIPs
 			formatter := util.ReplicaLarge(ogOld)
-			for i := 0; i < len(ogOld.Status.ReplicasLargeIPs); i++ {
-				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(i))
-				err := ExecCmd(db, ctx, cmd)
+			for ; id < len(oldIps) && id < len(newIps); id++ {
+				if oldIps[id] != newIps[id] {
+					cmd := fmt.Sprintf("Alter RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+					formatter.DataResourceName(id), ogNew.Status.ReplicasLargeIPs[id], dbPort, dbName, dbUser, dbPassword)
+					err := db.ExecCmd(cmd)
+					if err != nil {
+						return err
+					}							
+				}
+				readDsName += formatter.DataResourceName(id) + ","
+				props += formatter.DataResourceName(id) + "=" + largeWeight + ","	
+			}
+			if id < len(oldIps) {
+				replicaLargeId = id
+			}
+			for ; id < len(newIps); id++ {
+				cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
+						formatter.DataResourceName(id), ogNew.Status.ReplicasLargeIPs[id], dbPort, dbName, dbUser, dbPassword)
+				err := db.ExecCmd(cmd)
 				if err != nil {
 					return err
 				}	
-			}
-			for i := 0; i < len(ogNew.Status.ReplicasLargeIPs); i++ {
-				for {
-					cmd := fmt.Sprintf("ADD RESOURCE %s(HOST=%s,PORT=%s,DB=%s,USER=%s,PASSWORD=%s);", 
-							formatter.DataResourceName(i), ogNew.Status.ReplicasLargeIPs[i], dbPort, dbName, dbUser, dbPassword)
-					err := ExecCmd(db, ctx, cmd)
-					if err != nil {
-						time.Sleep(500 * time.Millisecond)
-						continue
-					}
-					break
-				}
-				readDsName += formatter.DataResourceName(i) + ","
-				props += formatter.DataResourceName(i) + "=" + largeWeight + ","
+				readDsName += formatter.DataResourceName(id) + ","
+				props += formatter.DataResourceName(id) + "=" + largeWeight + ","
 			}
 		} else {
 			formatter := util.ReplicaLarge(ogOld)
@@ -864,11 +940,44 @@ func (c *Controller) UpdateShardingsphereConfig(ogOld *opengaussv1.OpenGauss, og
 		readDsName = readDsName[:len(readDsName)-1]
 		props = props[:len(props)-1]
 		// create new read-write rule
-		cmd = fmt.Sprintf("ALTER READWRITE_SPLITTING RULE %s (WRITE_RESOURCE=%s, READ_RESOURCES(%s), TYPE(NAME=weight,PROPERTIES(%s)));", 
+		klog.Info("Create new read-write rule")
+		cmd := fmt.Sprintf("ALTER READWRITE_SPLITTING RULE %s (WRITE_RESOURCE=%s, READ_RESOURCES(%s), TYPE(NAME=weight,PROPERTIES(%s)));", 
 				readWriteName, writeDsName, readDsName, props)
-		err = ExecCmd(db, ctx, cmd)
+		err = db.ExecCmd(cmd)
 		if err != nil {
 			return err
+		}
+
+		// delete useless read sources
+		if replicaSmallId != -1 {
+			formatter := util.ReplicaSmall(ogOld)
+			for ; replicaSmallId < len(ogOld.Status.ReplicasSmallIPs); replicaSmallId++ {
+				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(replicaSmallId))
+				err := db.ExecCmd(cmd)
+				if err != nil {
+					return err
+				}	
+			}
+		}
+		if replicaMidId != -1 {
+			formatter := util.ReplicaMid(ogOld)
+			for ; replicaMidId < len(ogOld.Status.ReplicasMidIPs); replicaMidId++ {
+				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(replicaMidId))
+				err := db.ExecCmd(cmd)
+				if err != nil {
+					return err
+				}	
+			}
+		}
+		if replicaLargeId != -1 {
+			formatter := util.ReplicaLarge(ogOld)
+			for ; replicaLargeId < len(ogOld.Status.ReplicasLargeIPs); replicaLargeId++ {
+				cmd := fmt.Sprintf("DROP RESOURCE %s;", formatter.DataResourceName(replicaLargeId))
+				err := db.ExecCmd(cmd)
+				if err != nil {
+					return err
+				}	
+			}
 		}
 	}
 

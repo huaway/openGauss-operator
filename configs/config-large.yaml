@@ -185,7 +185,7 @@ data:
     layer of each datanode process, 100-INT_MAX/2 in MByte, default unit is kB(change
     requires restart)\n\n#------------------------------------------------------------------------------\n#
     RESOURCE USAGE (except WAL)\n#------------------------------------------------------------------------------\n\n#
-    - Memory -\n#memorypool_enable = false\n#memorypool_size = 512MB\n\n#enable_memory_limit
+    - Memory -\n#memorypool_enable = false\n#memorypool_size = 4GB\n\n#enable_memory_limit
     = true\n#max_process_memory = 12GB\n#UDFWorkerMemHardLimit = 1GB\n\n#shared_buffers
     = 4GB\t\t\t# min 128kB\n\t\t\t\t\t# (change requires restart)\nbulk_write_ring_size
     = 2GB\t\t# for bulkload, max shared_buffers\n#standby_shared_buffers_fraction

@@ -185,9 +185,9 @@ data:
     layer of each datanode process, 100-INT_MAX/2 in MByte, default unit is kB(change
     requires restart)\n\n#------------------------------------------------------------------------------\n#
     RESOURCE USAGE (except WAL)\n#------------------------------------------------------------------------------\n\n#
-    - Memory -\n#memorypool_enable = false\n#memorypool_size = 1GB\n\n#enable_memory_limit
+    - Memory -\n#memorypool_enable = false\n#memorypool_size = 4GB\n\n#enable_memory_limit
     = true\n#max_process_memory = 12GB\n#UDFWorkerMemHardLimit = 1GB\n\n#shared_buffers
-    = 2GB\t\t\t# min 128kB\n\t\t\t\t\t# (change requires restart)\nbulk_write_ring_size
+    = 512MB\t\t\t# min 128kB\n\t\t\t\t\t# (change requires restart)\nbulk_write_ring_size
     = 2GB\t\t# for bulkload, max shared_buffers\n#standby_shared_buffers_fraction
     = 0.3 #control shared buffers use in standby, 0.1-1.0\n#temp_buffers = 8MB\t\t\t#
     min 800kB\nmax_prepared_transactions = 200\t\t# zero disables the feature\n\t\t\t\t\t#
@@ -263,7 +263,7 @@ data:
     from standby(s); '*' = all\n#most_available_sync = off\t# Whether master is allowed
     to continue\n\t\t\t\t# as standbalone after sync standby failure\n\t\t\t\t# It's
     global control for all transactions\n#vacuum_defer_cleanup_age = 0\t# number of
-    xacts by which cleanup is delayed\n#data_replicate_buffer_size = 16MB\t# data
+    xacts by which cleanup is delayed\n#data_replicate_buffer_size = 128MB\t# data
     replication buffer size\nwalsender_max_send_size = 8MB  # Size of walsender max
     send size\n#enable_data_replicate = on\n\n# - Standby Servers -\n\n# These settings
     are ignored on a master server.\n\nhot_standby = on\t\t\t# \"on\" allows queries

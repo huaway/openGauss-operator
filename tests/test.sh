@@ -1,1 +1,0 @@
-sh ~/sysbench/sysbench-run.sh

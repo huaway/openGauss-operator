@@ -3,7 +3,11 @@
 */
 package v1
 
-import "strconv"
+import (
+	"strconv"
+
+	"k8s.io/klog"
+)
 
 const (
 	readyStatus   string = "READY"
@@ -17,13 +21,21 @@ func (og *OpenGauss) IsReady() bool {
 
 // IsMasterDeployed check if opengauss's master is deployed
 func (og *OpenGauss) IsMasterDeployed() bool {
-	return og.Status.ReadyMaster == strconv.Itoa(int(*og.Spec.OpenGauss.Master.Replicas))
+	return stringToInt32(og.Status.ReadyMaster) == *og.Spec.OpenGauss.Master.Replicas
 }
 
 // IsReplicaDeployed check if opengauss's replicas is deployed
 func (og *OpenGauss) IsReplicaDeployed() bool {
-	ans := og.Status.ReadyReplicasSmall == strconv.Itoa(int(*og.Spec.OpenGauss.WorkerSmall.Replicas))
-	ans = ans && og.Status.ReadyReplicasMid == strconv.Itoa(int(*og.Spec.OpenGauss.WorkerMid.Replicas))
-	ans = ans && og.Status.ReadyReplicasLarge == strconv.Itoa(int(*og.Spec.OpenGauss.WorkerLarge.Replicas))
+	ans := stringToInt32(og.Status.ReadyReplicasSmall) == int32(*og.Spec.OpenGauss.WorkerSmall.Replicas)
+	ans = ans && stringToInt32(og.Status.ReadyReplicasMid) == int32(*og.Spec.OpenGauss.WorkerMid.Replicas)
+	ans = ans && stringToInt32(og.Status.ReadyReplicasLarge) == int32(*og.Spec.OpenGauss.WorkerLarge.Replicas)
 	return ans
+}
+
+func stringToInt32(str string) int32 {
+	ans, err := strconv.ParseInt(str, 10, 32)
+	if err != nil {
+		klog.Error(err)
+	}
+	return int32(ans)
 }

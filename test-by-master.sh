@@ -15,5 +15,5 @@ ip=$(kubectl get pod -owide -n test | grep "d-masters-0" | awk '{print $6}')
 sysbench --db_driver=pgsql --pgsql-host=$ip \
 --pgsql-port=5432 --pgsql-user=gaussdb --pgsql-password=Enmo@123 \
 --pgsql-db=postgres  --threads=1 --rate=0 --time=10 --report-interval=5 oltp_read_only \
---tables=2 --table_size=100 \
---skip_trx=on prepare
+--tables=10 --table_size=10000 \
+--skip_trx=on run

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -17,8 +18,12 @@ const (
 	VmLarge	VmType = 2
 )
 
-const cpuPerSec float64 = 0.000049
-const memoryPerSec float64 = 0.00000613
+const (
+	cpuPerSec float64 		= 0.000049
+	memoryPerSec float64 	= 0.00000613
+	maxVM					= 5
+	minVM					= 1
+)
 
 type Vmpool struct {
 	cpuCore int
@@ -71,17 +76,6 @@ func NewVmpool(serverAddr string, ogkey string) (vmpool *Vmpool){
 		WorkerMidReplication: response.WorkerMidReplication,
 		WorkerLargeReplication: response.WorkerLargeReplication,
 	}
-	
-	// goroutine that calculate cost 
-	go func(vmpool *Vmpool) {
-		for _ = range vmpool.ch {
-			time.Sleep(2 * time.Second)
-			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerSmallReplication), 2)
-			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerMidReplication), 2)
-			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerLargeReplication), 2)
-		}
-	}(vmpool)
-
 	return
 }
 
@@ -90,19 +84,55 @@ func (vmpool *Vmpool) Close() {
 	close(vmpool.ch)
 }
 
+func (vmpool *Vmpool) Charge(ch <-chan int) {
+	for {
+		select {
+		case <- ch:
+			return
+		default:
+			time.Sleep(2 * time.Second)
+			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerSmallReplication), 2)
+			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerMidReplication), 2)
+			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerLargeReplication), 2)
+		}
+	}
+}
+
+// Print number of master and replicas to stdout every half minute.
+func (vmpool *Vmpool) Config(ch <-chan int) {
+	for {
+		select {
+		case <- ch:
+			return
+		default:
+			fmt.Println("---------------------")
+			fmt.Println("replicas-small: ", vmpool.scaleRequest.WorkerSmallReplication)
+			fmt.Println("replicas-mid: ", vmpool.scaleRequest.WorkerMidReplication)
+			fmt.Println("replicas-large: ", vmpool.scaleRequest.WorkerLargeReplication)
+			fmt.Println("---------------------")
+			time.Sleep(30 * time.Second)
+		}
+	}
+}
+
 func (vm *Vmpool) Price(vtype VmType) float64 {
 	return vm.cost
 }
 
-func (vmpool *Vmpool) ScaleUp(vtype VmType) {
+func (vmpool *Vmpool) ScaleUp(vtype VmType, cnt int32) {
+	if vmpool.scaleRequest.WorkerSmallReplication + vmpool.scaleRequest.WorkerMidReplication + vmpool.scaleRequest.WorkerLargeReplication + cnt > maxVM {
+		return
+	}
 	switch vtype {
 	case VmSmall:
-		vmpool.scaleRequest.WorkerSmallReplication++
+		vmpool.scaleRequest.WorkerSmallReplication += cnt
 	case VmMid:
-		vmpool.scaleRequest.WorkerMidReplication++
+		vmpool.scaleRequest.WorkerMidReplication += cnt
 	case VmLarge:
-		vmpool.scaleRequest.WorkerLargeReplication++
+		vmpool.scaleRequest.WorkerLargeReplication += cnt
 	}
+	fmt.Println("vmpool scale req: ", vmpool.scaleRequest)
+	
 	response, err := vmpool.client.Scale(context.TODO(), vmpool.scaleRequest)
 	if err != nil {
 		log.Fatal(err)
@@ -110,14 +140,29 @@ func (vmpool *Vmpool) ScaleUp(vtype VmType) {
 	log.Print(response)
 }
 
-func (vmpool *Vmpool) ScaleDown(vtype VmType) {
+func (vmpool *Vmpool) ScaleDown(vtype VmType, cnt int32) {
+	if vmpool.scaleRequest.WorkerSmallReplication + vmpool.scaleRequest.WorkerMidReplication + vmpool.scaleRequest.WorkerLargeReplication - cnt < 1 {
+		return
+	}
 	switch vtype {
 	case VmSmall:
-		vmpool.scaleRequest.WorkerSmallReplication--
+		if vmpool.scaleRequest.WorkerSmallReplication >= cnt {
+			vmpool.scaleRequest.WorkerSmallReplication -= cnt
+		} else {
+			return
+		}
 	case VmMid:
-		vmpool.scaleRequest.WorkerMidReplication--
+		if vmpool.scaleRequest.WorkerMidReplication >= cnt {
+			vmpool.scaleRequest.WorkerMidReplication -= cnt
+		} else {
+			return
+		}
 	case VmLarge:
-		vmpool.scaleRequest.WorkerLargeReplication--
+		if vmpool.scaleRequest.WorkerLargeReplication >= cnt {
+			vmpool.scaleRequest.WorkerLargeReplication -= cnt
+		} else {
+			return
+		}
 	}
 	response, err := vmpool.client.Scale(context.TODO(), vmpool.scaleRequest)
 	if err != nil {

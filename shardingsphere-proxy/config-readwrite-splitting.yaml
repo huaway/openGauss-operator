@@ -5,7 +5,7 @@ dataSources:
     url: jdbc:postgresql://[master-ip]:5432/postgres
     username: gaussdb
     password: Enmo@123
-    connectionTimeoutMilliseconds: 60000
+    connectionTimeoutMilliseconds: 10000
     idleTimeoutMilliseconds: 60000
     maxLifetimeMilliseconds: 1800000
     maxPoolSize: 50

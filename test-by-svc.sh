@@ -38,7 +38,7 @@
 ip=$(kubectl get svc -n test | grep "shardingsphere" | awk '{print $3}')
 sysbench --db_driver=pgsql --pgsql-host=$ip \
 --pgsql-port=5432 --pgsql-user=root --pgsql-password=root \
---pgsql-db=postgres  --threads=3 --rate=0 --time=120 --report-interval=5 oltp_read_only \
---tables=2 --table_size=100 \
+--pgsql-db=postgres  --threads=4 --rate=0 --time=500 --report-interval=5 oltp_read_only \
+--tables=10 --table_size=10000 \
 --skip_trx=on \
 run

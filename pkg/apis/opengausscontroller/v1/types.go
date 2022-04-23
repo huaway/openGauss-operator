@@ -57,14 +57,14 @@ type ShardingsphereStatefulSet struct {
 type OpenGaussStatus struct {
 	OpenGaussStatus           string   `json:"opengaussStatus"`         // OpenGauss if ready or not
 	ReadyMaster               string   `json:"readyMaster,omitempty"`   // Ready Master number
-	ReadyReplicasSmall    	  string   `json:"readyReplicasSmall,omitempty"` // Number of Ready Replicas with minimum configration
-	ReadyReplicasMid		  string   `json:"readyReplicasMid,omitempty"` // Number of Ready Replicas with medium configration
-	ReadyReplicasLarge		  string   `json:"readyReplicasLarge,omitempty"` // Number of Ready Replicas with maximum configration
+	ReadyReplicasSmall    	  string   `json:"readyReplicasSmall"` // Number of Ready Replicas with minimum configration
+	ReadyReplicasMid		  string   `json:"readyReplicasMid"` // Number of Ready Replicas with medium configration
+	ReadyReplicasLarge		  string   `json:"readyReplicasLarge"` // Number of Ready Replicas with maximum configration
 	MasterIPs                 []string `json:"masterIPs,omitempty"`                 // master ips
 	ReplicasSmallIPs		  []string `json:"replicasSmallIPs,omitempty"`
 	ReplicasMidIPs		      []string `json:"replicasMidIPs,omitempty"`
 	ReplicasLargeIPs		  []string `json:"replicasLargeIPs,omitempty"`
-	ReadyShardingsphere       string   `json:"readyShardingsphere,omitempty"`
+	ReadyShardingsphere       string   `json:"readyShardingsphere"`
 	PersistentVolumeClaimName string   `json:"persistentVolumeClaimName,omitempty"` // name of pvc
 }
 
