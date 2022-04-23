@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 	"log"
-	// "os"
+	"os"
 	"strconv"
 	"time"
 
@@ -24,7 +24,7 @@ const (
 
 	// Attributes about scale
 	runtime        = time.Minute * 300 // 测试时间
-	scaleInterval  = time.Second * 120 // 弹性伸缩间隔
+	scaleInterval  = time.Second * 60 // 弹性伸缩间隔
 	adjustSec	   = 5
 	adjustInterval = time.Second * adjustSec   // 获取CPU利用率间隔
 	neuralInterval = time.Second * 60 // Seconds of tentavie action
@@ -40,58 +40,49 @@ const (
 )
 
 func main() {
-	// args := os.Args
-	// if len(args) != 2 {
-	// 	fmt.Println("Not enough parameter")
-	// 	return
-	// }
+	args := os.Args
+	if len(args) != 2 {
+		fmt.Println("Not enough parameter")
+		return
+	}
 
-	// ch := make(chan int)
-	// vmpool := NewVmpool(serverAddr, ogkey)
-	// go vmpool.Charge(ch)
-	// go vmpool.Config(ch)
-
-	// cycle, _ := strconv.Atoi(os.Args[1])
-	// cycle = cycle / adjustSec
-	// fmt.Println("cycle ", cycle)
-	// lastScaleTime := time.Now()
-	// for i := 0; i < cycle; i++ {
-	// 	time.Sleep(adjustInterval)
-		
-	// 	// 获得第一个集群的平均CPU利用率，以判断是否伸缩备机
-	// 	_, queryClient, err := prometheusUtil.GetPrometheusClient(address)
-	// 	if err != nil {
-	// 		fmt.Println("Cannot connect to prometheus client " + address)
-	// 	}
-	// 	result, err := prometheusUtil.QueryWorkerCpuUsagePercentage("d", queryClient)
-	// 	if err != nil {
-	// 		log.Fatalf("Cannot query prometheus: %s, %s", address, err.Error())
-	// 	}
-	// 	cpuUtil, _ := strconv.ParseFloat(extractValue(&result), 64)
-	// 	// fmt.Println("Worker Cpu Usage", cpuUtil)
-
-	// 	// Scale every once in a while
-
-	// 	vmpool.tentative(queryClient, &lastScaleTime, cpuUtil)
-	// }
-
-	// ch <- 3
-	// close(ch)
-	// fmt.Println(vmpool.cost)
-
+	ch := make(chan int)
 	vmpool := NewVmpool(serverAddr, ogkey)
-	// vmpool.ScaleUp(VmMid, 1)
-	// time.Sleep(60 * time.Second)
-	vmpool.ScaleDown(VmMid, 1)
-	// time.Sleep(60 * time.Second)
+	go vmpool.Charge(ch)
+	go vmpool.Config(ch)
+
+	cycle, _ := strconv.Atoi(os.Args[1])
+	cycle = cycle / adjustSec
+	fmt.Println("cycle ", cycle)
+	lastScaleTime := time.Now()
+	for i := 0; i < cycle; i++ {
+		time.Sleep(adjustInterval)
+		
+		// 获得第一个集群的平均CPU利用率，以判断是否伸缩备机
+		_, queryClient, err := prometheusUtil.GetPrometheusClient(address)
+		if err != nil {
+			fmt.Println("Cannot connect to prometheus client " + address)
+		}
+		result, err := prometheusUtil.QueryWorkerCpuUsagePercentage("d", queryClient)
+		if err != nil {
+			log.Fatalf("Cannot query prometheus: %s, %s", address, err.Error())
+		}
+		cpuUtil, _ := strconv.ParseFloat(extractValue(&result), 64)
+		// fmt.Println("Worker Cpu Usage", cpuUtil)
+
+		// Scale every once in a while
+		vmpool.threshold(&lastScaleTime, cpuUtil)
+		// vmpool.tentative(queryClient, &lastScaleTime, cpuUtil)
+	}
+
+	ch <- 3
+	close(ch)
+	fmt.Println(vmpool.cost)
+
+	// vmpool := NewVmpool(serverAddr, ogkey)
 	// vmpool.ScaleUp(VmLarge, 1)
-	// time.Sleep(60 * time.Second)
+	// time.Sleep(30 * time.Second)
 	// vmpool.ScaleDown(VmMid, 1)
-	// time.Sleep(60 * time.Second)
-	// vmpool.ScaleUp(VmSmall, 1)
-	// vmpool.ScaleDown(VmLarge)
-	// time.Sleep(20*time.Second)
-	// vmpool.ScaleUp(VmLarge)
 	vmpool.Close()
 }
 
