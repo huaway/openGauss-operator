@@ -21,10 +21,18 @@ const (
 const (
 	cpuPerSec float64 		= 0.000049
 	memoryPerSec float64 	= 0.00000613
-	maxVM					= 5
+	maxVM					= 8
 	minVM					= 1
+	tpsPerCpu				= 10
+	cpuSmall				= 1
+	cpuMid					= 2
+	cpuLarge				= 4
+	capacityLarge 			= cpuLarge * tpsPerCpu - 15
+	capacityMid				= cpuMid * tpsPerCpu - 5
+	capacitySmall			= cpuSmall * tpsPerCpu
 )
 
+// Be careful: time between two scale request must be larger than 1min
 type Vmpool struct {
 	cpuCore int
 	cost float64
@@ -45,6 +53,18 @@ func vmCost(vmtype VmType, vmCnt int, sec int) float64 {
 	default:
 		return 0
 	}
+}
+
+func (vmpool *Vmpool) vmLargeCnt() int {
+	return int(vmpool.scaleRequest.WorkerLargeReplication)
+}
+
+func (vmpool *Vmpool) vmMidCnt() int {
+	return int(vmpool.scaleRequest.WorkerMidReplication)
+}
+
+func (vmpool *Vmpool) vmSmallCnt() int {
+	return int(vmpool.scaleRequest.WorkerSmallReplication)
 }
 
 func NewVmpool(serverAddr string, ogkey string) (vmpool *Vmpool){
@@ -92,8 +112,8 @@ func (vmpool *Vmpool) Charge(ch <-chan int) {
 		default:
 			time.Sleep(2 * time.Second)
 			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerSmallReplication), 2)
-			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerMidReplication), 2)
-			vmpool.cost += vmCost(VmSmall, int(vmpool.scaleRequest.WorkerLargeReplication), 2)
+			vmpool.cost += vmCost(VmMid, int(vmpool.scaleRequest.WorkerMidReplication), 2)
+			vmpool.cost += vmCost(VmLarge, int(vmpool.scaleRequest.WorkerLargeReplication), 2)
 		}
 	}
 }
@@ -119,9 +139,40 @@ func (vm *Vmpool) Price(vtype VmType) float64 {
 	return vm.cost
 }
 
-func (vmpool *Vmpool) ScaleUp(vtype VmType, cnt int32) {
+// the load can be processed by current cluster
+func (vm *Vmpool) Capacity() Load {
+	load := Load{thread: 0, tps: 0}
+	load.thread += cpuSmall * int(vm.scaleRequest.WorkerSmallReplication)
+	load.thread += cpuMid * int(vm.scaleRequest.WorkerMidReplication)
+	load.thread += cpuLarge * int(vm.scaleRequest.WorkerLargeReplication)
+	load.tps = int(vm.scaleRequest.WorkerSmallReplication) * capacitySmall + int(vm.scaleRequest.WorkerMidReplication) * capacityMid + int(vm.scaleRequest.WorkerLargeReplication) * capacityLarge
+
+	return load
+}
+
+// Don't support descreasing some tyeps of pod and increasing some types of pod
+// Support increasing only and descreasing only
+func (vmpool *Vmpool) Set(cntLarge uint32, cntMid uint32, cntSmall uint32) bool {
+	if cntLarge + cntMid + cntSmall < minVM || cntLarge + cntMid + cntSmall > maxVM {
+		return false
+	}
+	vmpool.scaleRequest.WorkerLargeReplication = int32(cntLarge)
+	vmpool.scaleRequest.WorkerMidReplication = int32(cntMid)
+	vmpool.scaleRequest.WorkerSmallReplication = int32(cntSmall)
+	fmt.Println("vmpool scale req: ", vmpool.scaleRequest)
+
+	response, err := vmpool.client.Scale(context.TODO(), vmpool.scaleRequest)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Print(response)
+
+	return true
+}
+
+func (vmpool *Vmpool) ScaleUp(vtype VmType, cnt int32) bool {
 	if vmpool.scaleRequest.WorkerSmallReplication + vmpool.scaleRequest.WorkerMidReplication + vmpool.scaleRequest.WorkerLargeReplication + cnt > maxVM {
-		return
+		return false
 	}
 	switch vtype {
 	case VmSmall:
@@ -138,30 +189,32 @@ func (vmpool *Vmpool) ScaleUp(vtype VmType, cnt int32) {
 		log.Fatal(err)
 	}
 	log.Print(response)
+
+	return true
 }
 
-func (vmpool *Vmpool) ScaleDown(vtype VmType, cnt int32) {
+func (vmpool *Vmpool) ScaleDown(vtype VmType, cnt int32) bool {
 	if vmpool.scaleRequest.WorkerSmallReplication + vmpool.scaleRequest.WorkerMidReplication + vmpool.scaleRequest.WorkerLargeReplication - cnt < 1 {
-		return
+		return false
 	}
 	switch vtype {
 	case VmSmall:
 		if vmpool.scaleRequest.WorkerSmallReplication >= cnt {
 			vmpool.scaleRequest.WorkerSmallReplication -= cnt
 		} else {
-			return
+			return false
 		}
 	case VmMid:
 		if vmpool.scaleRequest.WorkerMidReplication >= cnt {
 			vmpool.scaleRequest.WorkerMidReplication -= cnt
 		} else {
-			return
+			return false
 		}
 	case VmLarge:
 		if vmpool.scaleRequest.WorkerLargeReplication >= cnt {
 			vmpool.scaleRequest.WorkerLargeReplication -= cnt
 		} else {
-			return
+			return false
 		}
 	}
 	response, err := vmpool.client.Scale(context.TODO(), vmpool.scaleRequest)
@@ -169,4 +222,6 @@ func (vmpool *Vmpool) ScaleDown(vtype VmType, cnt int32) {
 		log.Fatal(err)
 	}
 	log.Print(response)
+
+	return true
 }

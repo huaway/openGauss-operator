@@ -7,24 +7,42 @@ spec:
   image: ructrx/og-ivld-buf2:1.0.1
   imagePullPolicy: IfNotPresent
   opengauss:
+    workerSmall:
+      replicas: 1
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2Gi
+        requests:
+          cpu: 1000m
+          memory: 2Gi
     master:
       replicas: 1
       resources:
         limits:
-          cpu: 4000m
-          memory: 8Gi
+          cpu: 8000m
+          memory: 16Gi
+        requests: 
+          cpu: 8000m
+          memory: 16Gi
+    workerMid:
+      replicas: 0
+      resources:
+        limits:
+          cpu: 2000m
+          memory: 4Gi
         requests:
-          cpu: 4000m
-          memory: 8Gi
-    worker:
-      replicas: 2
+          cpu: 2000m
+          memory: 4Gi
+    workerLarge:
+      replicas: 0
       resources:
         limits:
           cpu: 4000m
           memory: 8Gi
         requests:
           cpu: 4000m
-          memory: 8Gi      
+          memory: 8Gi
     shardingsphere:
       image: apache/shardingsphere-proxy:latest
       replicas: 1 

@@ -11,6 +11,6 @@ spec:
   accessModes:
     - ReadWriteMany
   hostPath:
-    path: /tmp/opengauss-data
+    path: /root/opengauss-data
     type: Directory
   persistentVolumeReclaimPolicy: Recycle

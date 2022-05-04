@@ -25,7 +25,7 @@ const (
 	// Attributes about scale
 	runtime        = time.Minute * 300 // 测试时间
 	scaleInterval  = time.Second * 60 // 弹性伸缩间隔
-	adjustSec	   = 5
+	adjustSec	   = 15
 	adjustInterval = time.Second * adjustSec   // 获取CPU利用率间隔
 	neuralInterval = time.Second * 60 // Seconds of tentavie action
 	isScale        = true              // 是否开启弹性伸缩
@@ -39,6 +39,128 @@ const (
 	cpuOneFull	   = 40
 )
 
+type Scaler interface {
+	Monitor()
+	Analyze(obj interface{}) Load
+	Plan(obj interface{}) []Decision
+	Execute(obj interface{}) bool
+}
+
+type ScalerBase struct {
+	prometheusAddress string
+	vmpool			  *Vmpool
+	ogname string
+
+	start			time.Time
+	scaleInterval	time.Duration
+	probeInterval 	time.Duration
+	ch <-chan int
+
+	upper int
+	lower int
+}
+
+func newScalerBase(
+	paddress string, 
+	vmpool *Vmpool, 
+	ogname string,
+	start time.Time,
+	scaleInterval time.Duration,
+	probeInterval time.Duration,
+	ch <-chan int,
+	upper int,
+	lower int) *ScalerBase {
+
+	return &ScalerBase{
+		prometheusAddress: paddress,
+		vmpool: vmpool,
+		ogname: ogname,
+		start: start,
+		scaleInterval: scaleInterval,
+		probeInterval: probeInterval,
+		ch: ch,
+		upper: upper,
+		lower: lower,		
+	}
+}
+
+func (scaler *ScalerBase) Monitor() {
+	lastScaleTime := time.Now()
+	for {
+		select {
+		case <- scaler.ch:
+			return
+		default:
+			// Acquire cpu utilizatin
+			_, queryClient, err := prometheusUtil.GetPrometheusClient(scaler.prometheusAddress)
+			if err != nil {
+				fmt.Println("Cannot connect to prometheus client " + scaler.prometheusAddress)
+			}
+			result, err := prometheusUtil.QueryWorkerCpuUsagePercentage(scaler.ogname, queryClient)
+			if err != nil {
+				fmt.Printf("Cannot query prometheus: %s, %s\n", address, err.Error())
+			}
+			cpuUtil, _ := strconv.ParseFloat(extractValue(&result), 64)
+			// fmt.Println("CPU util ", cpuUtil)
+
+			// If cpuUtil not in expected range
+			if (cpuUtil > float64(scaler.upper) || cpuUtil < float64(scaler.lower)) && time.Since(lastScaleTime) >= scaler.scaleInterval {
+				fmt.Println("Indicator is not int expected range")
+				load := scaler.Analyze(time.Now())
+				decisions := scaler.Plan(load)
+				if scaler.Execute(decisions) {
+					lastScaleTime = time.Now()
+				}
+			}
+
+			time.Sleep(scaler.probeInterval)
+		}
+	}
+}
+
+func (scaler *ScalerBase) Analyze(obj interface{}) Load {
+	fmt.Println("This is from scalerbase analyze")
+	return Load{thread: 0, tps: 0}
+}
+
+func (scaler *ScalerBase) Plan(obj interface{}) []Decision {
+	fmt.Println("This is from scalerbase plan")
+	var decisions []Decision
+	return decisions
+}
+
+func (scaler *ScalerBase) Execute(obj interface{}) bool {
+	var decisons []Decision
+	switch obj := obj.(type) {
+	case []Decision:
+		decisons = obj
+	default:
+		fmt.Println("Execute Unknown")
+		return false
+	}
+	fmt.Println("This is from scalerbase execute")
+	fmt.Println(decisons)
+
+	doaction := false
+	for _, decision := range decisons {
+		if decision.atype == ScaleUp {
+			doaction = doaction || scaler.vmpool.ScaleUp(decision.vtype, int32(decision.vcnt[0]))
+		} else if decision.atype == ScaleDown {
+			doaction = doaction || scaler.vmpool.ScaleDown(decision.vtype, int32(decision.vcnt[0]))
+		} else {
+			fmt.Println("decision ", decision.vcnt)
+			doaction = doaction || scaler.vmpool.Set(uint32(decision.vcnt[0]), uint32(decision.vcnt[1]), uint32(decision.vcnt[2]))
+		}
+
+		// interval between two scale action must be larger than 1min
+		if len(decisons) > 1 {
+			time.Sleep(1 * time.Minute)
+		}
+	}
+	return true
+}
+
+
 func main() {
 	args := os.Args
 	if len(args) != 2 {
@@ -51,52 +173,43 @@ func main() {
 	go vmpool.Charge(ch)
 	go vmpool.Config(ch)
 
-	cycle, _ := strconv.Atoi(os.Args[1])
-	cycle = cycle / adjustSec
-	fmt.Println("cycle ", cycle)
-	lastScaleTime := time.Now()
-	for i := 0; i < cycle; i++ {
-		time.Sleep(adjustInterval)
-		
-		// 获得第一个集群的平均CPU利用率，以判断是否伸缩备机
-		_, queryClient, err := prometheusUtil.GetPrometheusClient(address)
-		if err != nil {
-			fmt.Println("Cannot connect to prometheus client " + address)
-		}
-		result, err := prometheusUtil.QueryWorkerCpuUsagePercentage("d", queryClient)
-		if err != nil {
-			log.Fatalf("Cannot query prometheus: %s, %s", address, err.Error())
-		}
-		cpuUtil, _ := strconv.ParseFloat(extractValue(&result), 64)
-		// fmt.Println("Worker Cpu Usage", cpuUtil)
+	scaler := NewLoadPredictor(
+		address,
+		vmpool,
+		"d",
+		time.Now(),
+		scaleInterval,
+		adjustInterval,
+		ch,
+		upper,
+		lower,
+	)
+	// scaler := NewThresholdScaler(
+	// 	address,
+	// 	vmpool,
+	// 	"d",
+	// 	time.Now(),
+	// 	scaleInterval,
+	// 	adjustInterval,
+	// 	ch,
+	// 	upper,
+	// 	lower,		
+	// )
+	go scaler.Monitor()
 
-		// Scale every once in a while
-		vmpool.threshold(&lastScaleTime, cpuUtil)
-		// vmpool.tentative(queryClient, &lastScaleTime, cpuUtil)
-	}
-
+	seconds, _ := strconv.Atoi(os.Args[1])
+	time.Sleep(time.Second * time.Duration(seconds)) 
 	ch <- 3
 	close(ch)
 	fmt.Println(vmpool.cost)
 
 	// vmpool := NewVmpool(serverAddr, ogkey)
-	// vmpool.ScaleUp(VmLarge, 1)
-	// time.Sleep(30 * time.Second)
-	// vmpool.ScaleDown(VmMid, 1)
+	// vmpool.Set(2,2,2)
+	// vmpool.ScaleUp(VmSmall, 1)
+	// time.Sleep(60 * time.Second)
+	// vmpool.ScaleDown(VmSmall, 1)
+	// vmpool.Set(0,1,0)
 	vmpool.Close()
-}
-
-func (vmpool *Vmpool) threshold(lastScaleTime *time.Time, cpuUtil float64) {
-	if time.Since(*lastScaleTime) >= scaleInterval {
-		// threshold-based method
-		if cpuUtil > upper {
-			*lastScaleTime = time.Now()
-			vmpool.ScaleUp(VmLarge, 1)
-		} else if cpuUtil < lower {
-			*lastScaleTime = time.Now()
-			vmpool.ScaleDown(VmLarge, 1)
-		}
-	}
 }
 
 func (vmpool *Vmpool) tentative(client *prometheus.API, lastScaleTime *time.Time, cpuUtil float64) {
