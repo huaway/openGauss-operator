@@ -2,12 +2,16 @@
 
 The openGauss-operator uses the [client-go](https://github.com/kubernetes/client-go) library to develop a custom controller monitoring, scheduling and updating openGauss cluster in kubernetes.
 
+The openGuass-operator uses the [grpc in go](https://grpc.io/docs/languages/go/) to comminucate with openGauss-scaler.
+
 ### Table of Content
 
 - [Build & Run](#Build-&-Run)
 - [Structure](#Structure)
 - [Develop](#Develop)
-
+- [Shardingsphere](#4-configuration-about-shardingsphere)
+- [Test](#5-test)
+- [Scripts](#6-some-useful-scripts)
 
 ## 1. Build & Run
 ### Deploy Prometheus Monitoring
@@ -41,17 +45,10 @@ go build -o controller .
 ./controller -kubeconfig=$HOME/.kube/config
 ```
 
-Or Run in Deploymente
-```sh
-kubectl apply -f manifests manifests/serviceaccount.yaml 
-kubectl apply -f manifests/deploy.yaml
-```
-
-
 Create Crd, PV and example OpenGauss cluster
 
 ```sh
-# Before execute following command, please label one node with app=opengauss.
+# Before execute following command, please label one worker node with app=opengauss and create director /root/opengauss-data on that node.
 # create openGauss CustomResourceDefination
 kubectl create -f manifests/crd.yaml
 # create persistent volume
@@ -64,22 +61,13 @@ Check status
 
 ```sh
 # check all the components of opengauss defined by example
-kubectl get all | grep opengauss
-```
-
-Add new master
-
-```sh
-# connect to mycat with mysql client, default user "mycat" and password "123456"
-# create table using mysql client
-
-# example in example/opengauss.yaml and example/opengauss-new-master.yaml
+kubectl get all -n test | grep opengauss
 ```
 
 Enable auto-scaler
 ```sh
 # run in a seperate shell
-go run processor/example.go
+go run processor/auto-scaler.go
 ```
 ## 2. Structure
 
@@ -91,7 +79,7 @@ data flow and logic graph
 
 components
 
-![](./docs/diagrams/operator.png)
+![](./docs/diagrams/components.png)
 
 <br>
 
@@ -134,11 +122,31 @@ how the various components in the [client-go](https://github.com/kubernetes/clie
 
 ![](./docs/diagrams/client-go-controller-interaction.jpeg)
 
-### grpc code generate
+### Use grpc to update scale message
 
-For protoc installation and instructions, see [grpc in go](https://grpc.io/docs/languages/go/)
+For protoc installation and instructions, see [grpc in go](https://grpc.io/docs/languages/go/). The related code is in directory rpc.
 
 ```sh
 cd rpc
 protoc --go_out=. --go_opt=paths=source_relative     --go-grpc_out=. --go-grpc_opt=paths=source_relative    protobuf/clients.proto
 ```
+
+## 4. Configuration about shardingsphere
+[Shardingsphere](https://shardingsphere.apache.org/document/current/cn/overview/) is a middleware adopted to opengauss. Operator will create its configuration file (refer to controller.createShardingsphereConfigmap) and update its configuration if statefulset change(refer to controller.DecreaseShardingsphereConfig and controller.IncreaseShardingsphereConfig).
+
+### Bugs
+1. Some DistSQL statements to change configuration may fail.
+2. Interval between two statements to change read-write rules must be larger than 1min.
+3. Only support increase and descrease replicas. Don't support restart of replicas.
+
+## 5. Test 
+### Performance of differnet scaling methods
+In the directory test, there are files named test-xxx. Refer these files to write your own test script.
+#### Bugs
+After auto-scaler sending scale message, controller may fail to update config of shardingsphere through database connection. You have to delete cluster and restart the operator.
+
+### Performance of opengauss
+Refer to directory app-image. Scripts test performance of single opengauss node and multiple openguass nodes .
+
+## 6. Some useful scripts
+Refer to scripts under root directory.

@@ -1,0 +1,692 @@
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  31.52783010414212
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  30.92000038000001
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  28.806785390000016
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  29.412192326666688
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  25.800068306666663
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 7
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  33.55077049000002
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 9
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 11
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  87.17634217333334
+This is from threshold analyze
+This is from threshold plan
+send scaleup to server
+This is from scalerbase execute
+[{0 0 [1]}]
+vmpool scale req:  openGaussObjectKey:"test/d" masterReplication:1 workerSmallReplication:2
+thread: 2
+rate: 14
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  22.08096906666669
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  91.3256808766668
+This is from threshold analyze
+This is from threshold plan
+send scaleup to server
+This is from scalerbase execute
+[{0 0 [1]}]
+vmpool scale req:  openGaussObjectKey:"test/d" masterReplication:1 workerSmallReplication:2
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 21
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 25
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 15
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 13
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  34.90842698166664
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 2
+rate: 10
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  31.21125984666681
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 8
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 6
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  25.703521316666716
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  24.219017773333462
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  34.36164637666669
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  32.45865966666656
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  24.593711990000124
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  34.11237729666672
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 9
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  32.59028394666681
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 21
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  37.32869850666665
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 3
+rate: 21
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  87.8537771466669
+This is from threshold analyze
+This is from threshold plan
+send scaleup to server
+This is from scalerbase execute
+[{0 0 [1]}]
+vmpool scale req:  openGaussObjectKey:"test/d" masterReplication:1 workerSmallReplication:2
+thread: 4
+rate: 34
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  99.49184566833324
+This is from threshold analyze
+This is from threshold plan
+send scaleup to server
+This is from scalerbase execute
+[{0 0 [1]}]
+vmpool scale req:  openGaussObjectKey:"test/d" masterReplication:1 workerSmallReplication:3
+thread: 4
+rate: 33
+---------------------
+replicas-small:  3
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  3
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 4
+rate: 32
+---------------------
+replicas-small:  3
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  3
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 3
+rate: 21
+---------------------
+replicas-small:  3
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  3
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 19
+---------------------
+replicas-small:  3
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  26.992780809999932
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 10
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  35.75009529166664
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  21.159589316666825
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 4
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  14.461102423332855
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 4
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  21.113113126666576
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  14.194225033333325
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  24.51954313333317
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+Indicator is not int expected range, cpuUtil is  0.40816401666688756
+This is from threshold analyze
+This is from threshold plan
+send scaledown to server
+This is from scalerbase execute
+[{1 0 [1]}]
+0.22347647999999584

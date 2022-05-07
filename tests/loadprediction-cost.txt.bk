@@ -1,0 +1,560 @@
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 7
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 9
+The predicted load is  {2 20}
+predicted tps  20
+capacity tps  {1 10}
+cnt  [0 0 2]
+This is from scalerbase execute
+[{2 0 [0 0 2]}]
+decision  [0 0 2]
+vmpool scale req:  openGaussObjectKey:"test/d"  masterReplication:1  workerSmallReplication:2
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 11
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 14
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 20
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 21
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 25
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 15
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 13
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+The predicted load is  {1 8}
+predicted tps  8
+capacity tps  {2 20}
+cnt  [0 0 1]
+This is from scalerbase execute
+[{2 0 [0 0 1]}]
+decision  [0 0 1]
+vmpool scale req:  openGaussObjectKey:"test/d"  masterReplication:1  workerSmallReplication:1
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 2
+rate: 10
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 8
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 6
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+The predicted load is  {4 35}
+predicted tps  35
+capacity tps  {1 10}
+cnt  [0 1 2]
+This is from scalerbase execute
+[{2 0 [0 1 2]}]
+decision  [0 1 2]
+vmpool scale req:  openGaussObjectKey:"test/d"  masterReplication:1  workerSmallReplication:2  workerMidReplication:1
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+thread: 1
+rate: 9
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+thread: 2
+rate: 21
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+thread: 3
+rate: 21
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+thread: 4
+rate: 34
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+thread: 4
+rate: 33
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  1
+replicas-large:  0
+---------------------
+The predicted load is  {2 15}
+predicted tps  15
+capacity tps  {4 40}
+cnt  [0 0 1]
+This is from scalerbase execute
+[{2 0 [0 0 1]}]
+decision  [0 0 1]
+vmpool scale req:  openGaussObjectKey:"test/d"  masterReplication:1  workerSmallReplication:1
+thread: 4
+rate: 32
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 3
+rate: 21
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+The predicted load is  {1 6}
+predicted tps  6
+capacity tps  {1 10}
+cnt  []
+This is from scalerbase execute
+[]
+thread: 2
+rate: 19
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 10
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 4
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 4
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+thread: 1
+rate: 5
+---------------------
+replicas-small:  1
+replicas-mid:  0
+replicas-large:  0
+---------------------
+The predicted load is  {2 20}
+predicted tps  20
+capacity tps  {1 10}
+cnt  [0 0 2]
+This is from scalerbase execute
+[{2 0 [0 0 2]}]
+decision  [0 0 2]
+vmpool scale req:  openGaussObjectKey:"test/d"  masterReplication:1  workerSmallReplication:2
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+---------------------
+replicas-small:  2
+replicas-mid:  0
+replicas-large:  0
+---------------------
+0.2708917199999961

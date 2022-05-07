@@ -1,0 +1,555 @@
+cpu  1  memory  2
+---------------------
+num  1
+::::::::::::::::
+thread  1
+SQL statistics:
+    queries performed:
+        read:                            23408
+        write:                           0
+        other:                           0
+        total:                           23408
+    transactions:                        1672   (13.93 per sec.)
+    queries:                             23408  (195.04 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0148s
+    total number of events:              1672
+
+Latency (ms):
+         min:                                   56.24
+         avg:                                   71.77
+         max:                                  550.47
+         95th percentile:                       89.16
+         sum:                               120002.97
+
+Threads fairness:
+    events (avg/stddev):           1672.0000/0.00
+    execution time (avg/stddev):   120.0030/0.00
+
+:::::::::
+num  2
+::::::::::::::::
+thread  2
+SQL statistics:
+    queries performed:
+        read:                            40768
+        write:                           0
+        other:                           0
+        total:                           40768
+    transactions:                        2912   (24.25 per sec.)
+    queries:                             40768  (339.55 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0625s
+    total number of events:              2912
+
+Latency (ms):
+         min:                                   61.67
+         avg:                                   82.43
+         max:                                  579.75
+         95th percentile:                      101.13
+         sum:                               240047.51
+
+Threads fairness:
+    events (avg/stddev):           1456.0000/0.00
+    execution time (avg/stddev):   120.0238/0.03
+
+num  3
+::::::::::::::::
+thread  3
+SQL statistics:
+    queries performed:
+        read:                            54516
+        write:                           0
+        other:                           0
+        total:                           54516
+    transactions:                        3894   (32.44 per sec.)
+    queries:                             54516  (454.20 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0238s
+    total number of events:              3894
+
+Latency (ms):
+         min:                                   64.91
+         avg:                                   92.45
+         max:                                 1310.42
+         95th percentile:                      116.80
+         sum:                               360013.53
+
+Threads fairness:
+    events (avg/stddev):           1298.0000/6.68
+    execution time (avg/stddev):   120.0045/0.01
+
+:::::::::
+num  4
+::::::::::::::::
+thread  4
+SQL statistics:
+    queries performed:
+        read:                            65534
+        write:                           0
+        other:                           0
+        total:                           65534
+    transactions:                        4681   (38.98 per sec.)
+    queries:                             65534  (545.76 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0754s
+    total number of events:              4681
+
+Latency (ms):
+         min:                                   66.49
+         avg:                                  102.57
+         max:                                 1169.26
+         95th percentile:                      132.49
+         sum:                               480138.97
+
+Threads fairness:
+    events (avg/stddev):           1170.2500/4.49
+    execution time (avg/stddev):   120.0347/0.02
+
+num  5
+::::::::::::::::
+thread  5
+SQL statistics:
+    queries performed:
+        read:                            73052
+        write:                           0
+        other:                           0
+        total:                           73052
+    transactions:                        5218   (43.44 per sec.)
+    queries:                             73052  (608.21 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.1073s
+    total number of events:              5218
+
+Latency (ms):
+         min:                                   67.59
+         avg:                                  115.05
+         max:                                 1272.85
+         95th percentile:                      158.63
+         sum:                               600339.60
+
+Threads fairness:
+    events (avg/stddev):           1043.6000/10.63
+    execution time (avg/stddev):   120.0679/0.02
+---------------------
+cpu  2  memory  4
+---------------------
+num  1
+::::::::::::::::
+thread  2
+SQL statistics:
+    queries performed:
+        read:                            45696
+        write:                           0
+        other:                           0
+        total:                           45696
+    transactions:                        3264   (27.18 per sec.)
+    queries:                             45696  (380.59 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0634s
+    total number of events:              3264
+
+Latency (ms):
+         min:                                   60.63
+         avg:                                   73.55
+         max:                                  534.24
+         95th percentile:                       86.00
+         sum:                               240076.54
+
+Threads fairness:
+    events (avg/stddev):           1632.0000/1.00
+    execution time (avg/stddev):   120.0383/0.02
+
+:::::::::
+num  2
+::::::::::::::::
+thread  4
+SQL statistics:
+    queries performed:
+        read:                            71680
+        write:                           0
+        other:                           0
+        total:                           71680
+    transactions:                        5120   (42.64 per sec.)
+    queries:                             71680  (596.93 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0774s
+    total number of events:              5120
+
+Latency (ms):
+         min:                                   68.43
+         avg:                                   93.79
+         max:                                  773.30
+         95th percentile:                      106.75
+         sum:                               480202.29
+
+Threads fairness:
+    events (avg/stddev):           1280.0000/3.94
+    execution time (avg/stddev):   120.0506/0.02
+
+:::::::::
+num  3
+::::::::::::::::
+thread  6
+SQL statistics:
+    queries performed:
+        read:                            85708
+        write:                           0
+        other:                           0
+        total:                           85708
+    transactions:                        6122   (50.98 per sec.)
+    queries:                             85708  (713.68 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0897s
+    total number of events:              6122
+
+Latency (ms):
+         min:                                   73.64
+         avg:                                  117.66
+         max:                                  814.92
+         95th percentile:                      147.61
+         sum:                               720301.92
+
+Threads fairness:
+    events (avg/stddev):           1020.3333/2.05
+    execution time (avg/stddev):   120.0503/0.02
+
+:::::::::
+num  4
+::::::::::::::::
+thread  8
+SQL statistics:
+    queries performed:
+        read:                            103922
+        write:                           0
+        other:                           0
+        total:                           103922
+    transactions:                        7423   (61.81 per sec.)
+    queries:                             103922 (865.31 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0959s
+    total number of events:              7423
+
+Latency (ms):
+         min:                                   69.23
+         avg:                                  129.38
+         max:                                 1192.74
+         95th percentile:                      167.44
+         sum:                               960362.29
+
+Threads fairness:
+    events (avg/stddev):           927.8750/16.31
+    execution time (avg/stddev):   120.0453/0.02
+
+:::::::::
+num  5
+::::::::::::::::
+thread  10
+SQL statistics:
+    queries performed:
+        read:                            112308
+        write:                           0
+        other:                           0
+        total:                           112308
+    transactions:                        8022   (66.81 per sec.)
+    queries:                             112308 (935.33 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0700s
+    total number of events:              8022
+
+Latency (ms):
+         min:                                   77.82
+         avg:                                  149.64
+         max:                                 1605.36
+         95th percentile:                      244.38
+         sum:                              1200427.07
+
+Threads fairness:
+    events (avg/stddev):           802.2000/199.68
+    execution time (avg/stddev):   120.0427/0.02
+
+:::::::::
+---------------------
+cpu  4  memory  8
+---------------------
+num  1
+::::::::::::::::
+thread  4
+SQL statistics:
+    queries performed:
+        read:                            74774
+        write:                           0
+        other:                           0
+        total:                           74774
+    transactions:                        5341   (44.48 per sec.)
+    queries:                             74774  (622.78 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0619s
+    total number of events:              5341
+
+Latency (ms):
+         min:                                   65.76
+         avg:                                   89.90
+         max:                                  592.59
+         95th percentile:                      101.13
+         sum:                               480154.79
+
+Threads fairness:
+    events (avg/stddev):           1335.2500/4.60
+    execution time (avg/stddev):   120.0387/0.02
+
+:::::::::
+num  2
+::::::::::::::::
+thread  8
+SQL statistics:
+    queries performed:
+        read:                            104580
+        write:                           0
+        other:                           0
+        total:                           104580
+    transactions:                        7470   (62.21 per sec.)
+    queries:                             104580 (870.92 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0772s
+    total number of events:              7470
+
+Latency (ms):
+         min:                                   73.77
+         avg:                                  128.55
+         max:                                 1339.14
+         95th percentile:                      158.63
+         sum:                               960252.78
+
+Threads fairness:
+    events (avg/stddev):           933.7500/19.81
+    execution time (avg/stddev):   120.0316/0.03
+
+:::::::::
+num  3
+::::::::::::::::
+thread  12
+SQL statistics:
+    queries performed:
+        read:                            116998
+        write:                           0
+        other:                           0
+        total:                           116998
+    transactions:                        8357   (69.56 per sec.)
+    queries:                             116998 (973.91 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.1295s
+    total number of events:              8357
+
+Latency (ms):
+         min:                                   80.73
+         avg:                                  172.42
+         max:                                 1299.97
+         95th percentile:                      248.83
+         sum:                              1440904.83
+
+Threads fairness:
+    events (avg/stddev):           696.4167/202.19
+    execution time (avg/stddev):   120.0754/0.04
+
+:::::::::
+num  4
+::::::::::::::::
+thread  16
+SQL statistics:
+    queries performed:
+        read:                            118048
+        write:                           0
+        other:                           0
+        total:                           118048
+    transactions:                        8432   (69.37 per sec.)
+    queries:                             118048 (971.25 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          121.5398s
+    total number of events:              8432
+
+Latency (ms):
+         min:                                  154.03
+         avg:                                  230.49
+         max:                                 2572.91
+         95th percentile:                      257.95
+         sum:                              1943464.33
+
+Threads fairness:
+    events (avg/stddev):           527.0000/3.61
+    execution time (avg/stddev):   121.4665/0.06
+
+:::::::::
+num  5
+::::::::::::::::
+thread  20
+:::::::::
+---------------------
+cpu  1  memory  2
+---------------------
+num  6
+::::::::::::::::
+thread  6
+SQL statistics:
+    queries performed:
+        read:                            87822
+        write:                           0
+        other:                           0
+        total:                           87822
+    transactions:                        6273   (52.24 per sec.)
+    queries:                             87822  (731.41 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0687s
+    total number of events:              6273
+
+Latency (ms):
+         min:                                   63.16
+         avg:                                  114.79
+         max:                                 1782.73
+         95th percentile:                      158.63
+         sum:                               720108.04
+
+Threads fairness:
+    events (avg/stddev):           1045.5000/7.97
+    execution time (avg/stddev):   120.0180/0.02
+
+:::::::::
+num  7
+::::::::::::::::
+thread  7
+SQL statistics:
+    queries performed:
+        read:                            94738
+        write:                           0
+        other:                           0
+        total:                           94738
+    transactions:                        6767   (56.33 per sec.)
+    queries:                             94738  (788.64 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.1249s
+    total number of events:              6767
+
+Latency (ms):
+         min:                                   62.26
+         avg:                                  124.21
+         max:                                 1155.93
+         95th percentile:                      186.54
+         sum:                               840550.62
+
+Threads fairness:
+    events (avg/stddev):           966.7143/14.14
+    execution time (avg/stddev):   120.0787/0.04
+
+:::::::::
+num  8
+::::::::::::::::
+thread  8
+SQL statistics:
+    queries performed:
+        read:                            102144
+        write:                           0
+        other:                           0
+        total:                           102144
+    transactions:                        7296   (60.74 per sec.)
+    queries:                             102144 (850.37 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.1139s
+    total number of events:              7296
+
+Latency (ms):
+         min:                                   61.32
+         avg:                                  131.64
+         max:                                 2079.81
+         95th percentile:                      207.82
+         sum:                               960476.89
+
+Threads fairness:
+    events (avg/stddev):           912.0000/8.20
+    execution time (avg/stddev):   120.0596/0.04
+
+:::::::::
+---------------------
+cpu  8  memory  16
+---------------------
+num  1
+::::::::::::::::
+thread  8
+SQL statistics:
+    queries performed:
+        read:                            119238
+        write:                           0
+        other:                           0
+        total:                           119238
+    transactions:                        8517   (70.92 per sec.)
+    queries:                             119238 (992.82 per sec.)
+    ignored errors:                      0      (0.00 per sec.)
+    reconnects:                          0      (0.00 per sec.)
+
+General statistics:
+    total time:                          120.0968s
+    total number of events:              8517
+
+Latency (ms):
+         min:                                   61.75
+         avg:                                  112.77
+         max:                                  801.30
+         95th percentile:                      150.29
+         sum:                               960487.12
+
+Threads fairness:
+    events (avg/stddev):           1064.6250/74.70
+    execution time (avg/stddev):   120.0609/0.02
+
+:::::::::
+---------------------
