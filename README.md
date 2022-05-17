@@ -66,8 +66,10 @@ kubectl get all -n test | grep opengauss
 
 Enable auto-scaler
 ```sh
-# run in a seperate shell
-go run processor/auto-scaler.go
+# enter processor/ and run following command in a seperate shell
+# xxx specify senconds scaler run
+go build -o scaler .
+./scaler xxx
 ```
 ## 2. Structure
 
